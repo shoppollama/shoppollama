@@ -1,29 +1,3 @@
-local in_deps = false
-local did_change = false
-
-for line in lines do
-  -- be mindful of any sibling function annotations that must stay attached
-  -- escape special chars with % when matching literally, ie:: `%^  %$  %(  %)  %%  %.  %[  %]  %*  %+  %-  %?`
-  if line:match('^%s*defp deps do%s*$') then
-    in_deps = true
-    print(line)
-  elseif in_deps and line:match('^%s*%{:bumblebee,') then
-    -- skip bumblebee line
-    did_change = true
-  elseif in_deps and line:match('^%s*%{:nx,') then
-    -- skip nx line  
-    did_change = true
-  elseif in_deps and line:match('^%s*%{:httpoison,') then
-    -- skip httpoison line
-    did_change = true
-  elseif in_deps and line:match('^%s*%]%s*$') then
-    -- we found closing `]` delimiter, and WE REMEMBER TO PRINT IT
-    in_deps = false
-    print(line)
-  else
-    print(line)
-  end
-end
 defmodule Shoppollama.MixProject do
   use Mix.Project
 
@@ -112,3 +86,4 @@ defmodule Shoppollama.MixProject do
     ]
   end
 end
+
