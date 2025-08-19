@@ -1,29 +1,3 @@
-local in_deps = false
-local did_change = false
-
-for line in lines do
-  -- escape special chars with % when matching literally, ie:: `%^  %$  %(  %)  %%  %.  %[  %]  %*  %+  %-  %?`
-  if line:match('^%s*defp%s+deps%s+do%s*$') then
-    in_deps = true
-    print(line)
-  elseif in_deps and line:match('%{:bandit,%s*"~> 1%.5"%}') then
-    -- print the matched line
-    print(line)
-    -- then append new deps for Ollama, GenStage, and Shopify integration
-    print('      {:gen_stage, "~> 1.2"},')
-    print('      {:broadway, "~> 1.0"},')
-    print('      {:nx, "~> 0.8"},')
-    print('      {:bumblebee, "~> 0.7"},')
-    print('      {:httpoison, "~> 2.0"}')
-    did_change = true
-  elseif line:match('^%s*end%s*$') then
-    -- we found closing `end` delimiter, and WE REMEMBER TO PRINT IT
-    in_deps = false
-    print(line)
-  else
-    print(line)
-  end
-end
 defmodule Shoppollama.MixProject do
   use Mix.Project
 
