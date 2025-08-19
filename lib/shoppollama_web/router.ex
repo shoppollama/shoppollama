@@ -1,24 +1,3 @@
-local in_scope = false
-local did_change = false
-
-for line in lines do
-  -- escape special chars with % when matching literally, ie:: `%^  %$  %(  %)  %%  %.  %[  %]  %*  %+  %-  %?`
-  if line:match('^%s*scope%s+"/",%s*ShoppollamaWeb%s+do%s*$') then
-    in_scope = true
-    print(line)
-  elseif in_scope and line:match('^%s*get%s+"/",%s*PageController,%s*:home%s*$') then
-    -- replace the home route with our chat route
-    print('    live "/", ChatLive')
-    print('    live "/chat", ChatLive')
-    did_change = true
-  elseif in_scope and line:match('^%s*end%s*$') then
-    -- we found closing `end` delimiter, and WE REMEMBER TO PRINT IT
-    in_scope = false
-    print(line)
-  else
-    print(line)
-  end
-end
 defmodule ShoppollamaWeb.Router do
   use ShoppollamaWeb, :router
 
