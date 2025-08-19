@@ -86,4 +86,3 @@ defmodule Shoppollama.MixProject do
     ]
   end
 end
-
