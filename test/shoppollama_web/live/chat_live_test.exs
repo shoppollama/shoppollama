@@ -55,7 +55,10 @@ defmodule ShoppollamaWeb.ChatLiveTest do
 
       # The flash message depends on whether OAuth succeeds or fails
       # With test credentials, it should show an error but still test the flow
-      flash_message = get_flash(conn, :error) || get_flash(conn, :info)
+      flash_message =
+        Phoenix.Flash.get(conn.assigns.flash, :error) ||
+          Phoenix.Flash.get(conn.assigns.flash, :info)
+
       assert flash_message != nil
 
       # Even if OAuth fails due to test credentials, verify the database handling works
@@ -75,7 +78,7 @@ defmodule ShoppollamaWeb.ChatLiveTest do
         |> Repo.insert()
 
       # Start the LiveView
-      {:ok, view, html} = live(conn, "/")
+      {:ok, view, _html} = live(conn, "/")
 
       # Should show "Store Connected" since we have an active store
       assert has_element?(view, "button", "Store Connected")
