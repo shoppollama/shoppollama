@@ -1,3 +1,17 @@
+local did_change = false
+
+for line in lines do
+  -- Remove the Process.sleep line from generate_ai_response
+  if line:match('^%s*#%s*Simulate thinking time%s*$') then
+    -- Skip the comment
+    did_change = true
+  elseif line:match('^%s*Process%.sleep%(1500%)%s*$') then
+    -- Skip the Process.sleep line
+    did_change = true
+  else
+    print(line)
+  end
+end
 defmodule ShoppollamaWeb.ChatLive do
   use ShoppollamaWeb, :live_view
   alias Phoenix.PubSub
@@ -219,8 +233,7 @@ defmodule ShoppollamaWeb.ChatLive do
 
   # Simulate AI responses until we implement Ollama
   defp generate_ai_response(message, model) do
-    # Simulate thinking time
-    Process.sleep(1500)
+    # Simulate thinking time - REMOVED TO PREVENT LINTING ERROR
 
     cond do
       String.contains?(String.downcase(message), "store") ->
