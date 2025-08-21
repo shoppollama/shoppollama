@@ -1,3 +1,15 @@
+local did_change = false
+
+for line in lines do
+-- escape special chars with % when matching literally, ie:: `%^  %$  %(  %)  %%  %.  %[  %]  %*  %+  %-  %?`
+if line:match('AI%-Powered Shopify Assistant') then
+local updated = line:gsub('AI%-Powered Shopify Assistant', 'AI Commerce Assistant')
+print(updated)
+did_change = true
+else
+print(line)
+end
+end
 <Layouts.app flash={@flash}>
   <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
     <!-- Header -->
@@ -8,7 +20,7 @@
             <span class="text-white font-bold text-sm">S</span>
           </div>
           <h1 class="text-white text-xl font-bold">ShoppOllama</h1>
-          <span class="text-purple-300 text-sm">AI-Powered Shopify Assistant</span>
+          <span class="text-purple-300 text-sm">AI Commerce Assistant</span>
         </div>
         <div class="flex items-center space-x-4">
           <div class="bg-green-500/20 border border-green-500/30 rounded-full px-3 py-1">
