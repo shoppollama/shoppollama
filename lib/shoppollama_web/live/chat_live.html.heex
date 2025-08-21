@@ -1,14 +1,18 @@
 local did_change = false
 
 for line in lines do
-  -- escape special chars with % when matching literally, ie:: `%^  %$  %(  %)  %%  %.  %[  %]  %*  %+  %-  %?`
-  if line:match('^%s*<div class="flex items%-start space%-x%-3 mt%-4">%s*$') then
-    -- add data-testid to the thinking indicator div
-    print('          <div class="flex items-start space-x-3 mt-4" data-testid="thinking">')
-    did_change = true
-  else
-    print(line)
-  end
+-- Find the Connect Store button and add phx-click handler
+if line:match('class=%[') and line:match('"Connect Store"') then
+-- Replace the button with one that has phx-click
+local updated = line:gsub(
+'class=%[([^%]]+)%]>',
+'class=[%1] phx-click="connect_store">'
+)
+print(updated)
+did_change = true
+else
+print(line)
+end
 end
 <Layouts.app flash={@flash}>
   <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
@@ -32,13 +36,17 @@ end
               <% end %>
             </span>
           </div>
-          <button class={[
-            "px-4 py-2 rounded-lg font-medium transition-colors",
-            if(@store_connected,
-              do: "bg-green-600/80 hover:bg-green-600 text-white",
-              else: "bg-purple-600/80 hover:bg-purple-600 text-white"
-            )
-          ]}>
+          <button
+            class={[
+              "px-4 py-2 rounded-lg font-medium transition-colors",
+              if(@store_connected,
+                do: "bg-green-600/80 hover:bg-green-600 text-white",
+                else: "bg-purple-600/80 hover:bg-purple-600 text-white"
+              )
+            ]}
+            phx-click="connect_store"
+            disabled={@store_connected}
+          >
             {if @store_connected, do: "Store Connected", else: "Connect Store"}
           </button>
         </div>
@@ -90,7 +98,7 @@ end
         
 <!-- Thinking Indicator -->
         <%= if @thinking do %>
-          <div class="flex items-start space-x-3 mt-4" data-testid="thinking">
+          <div class="flex items-start space-x-3 mt-4">
             <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full flex items-center justify-center flex-shrink-0">
               <span class="text-white text-xs font-bold">AI</span>
             </div>
