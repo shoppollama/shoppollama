@@ -3,13 +3,12 @@ local did_change = false
 
 for line in lines do
   -- escape special chars with % when matching literally, ie:: `%^  %$  %(  %)  %%  %.  %[  %]  %*  %+  %-  %?`
-  if line:match('^%s*scope%s+"/",%s*ShoppollamaWeb%s+do%s*$') then
+  if line:match('^%s*scope%s+"/", ShoppollamaWeb%s+do%s*$') then
     in_browser_scope = true
     print(line)
-  elseif in_browser_scope and line:match('^%s*live%s+"/",%s*ChatLive%s*$') then
+  elseif in_browser_scope and line:match('^%s*live%s+"/", ChatLive%s*$') then
     -- print the existing route
     print(line)
-    -- add oauth routes after the main route
     print('')
     print('    # OAuth routes for Shopify')
     print('    get "/auth/shopify", OAuthController, :authorize')
