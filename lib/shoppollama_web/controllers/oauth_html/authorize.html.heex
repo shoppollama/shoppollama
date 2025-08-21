@@ -1,0 +1,48 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-6">
+  <div class="bg-black/30 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8 w-full max-w-md">
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <span class="text-white font-bold text-2xl">S</span>
+      </div>
+      <h1 class="text-white text-2xl font-bold mb-2">Connect Your Shopify Store</h1>
+      <p class="text-gray-300 text-sm">Enter your store domain to authorize ShoppOllama</p>
+    </div>
+
+    <form action="/auth/shopify" method="get" class="space-y-6">
+      <div>
+        <label for="shop" class="block text-sm font-medium text-gray-300 mb-2">
+          Store Domain
+        </label>
+        <div class="relative">
+          <input
+            type="text"
+            id="shop"
+            name="shop"
+            placeholder="your-store-name"
+            required
+            class="w-full bg-gray-800/50 border border-gray-600/50 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 pr-32"
+          />
+          <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">
+            .myshopify.com
+          </span>
+        </div>
+        <p class="text-gray-400 text-xs mt-2">
+          Enter just the store name (e.g., "my-store" for my-store.myshopify.com)
+        </p>
+      </div>
+
+      <button
+        type="submit"
+        class="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-medium py-3 px-4 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+      >
+        Connect to Shopify
+      </button>
+    </form>
+
+    <div class="mt-6 text-center">
+      <a href="/" class="text-purple-300 hover:text-purple-200 text-sm underline">
+        ← Back to ShoppOllama
+      </a>
+    </div>
+  </div>
+</div>
