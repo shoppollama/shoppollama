@@ -1,12 +1,11 @@
 local did_change = false
 
 for line in lines do
--- Find the incorrect csrf_token function call and fix it
+-- Find the csrf_token line and replace it with the correct function
 if line:match('Phoenix%.HTML%.Form%.csrf_token%(%)') then
--- Replace with the correct Phoenix function
 local updated = line:gsub(
 'Phoenix%.HTML%.Form%.csrf_token%(%)',
-'Phoenix.HTML.Form.csrf_token()'
+'Plug.CSRFProtection.get_csrf_token()'
 )
 print(updated)
 did_change = true
