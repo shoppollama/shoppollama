@@ -4,11 +4,8 @@ local did_change = false
 for line in lines do
   -- be mindful of any sibling function annotations that must stay attached
   -- escape special chars with % when matching literally, ie:: `%^  %$  %(  %)  %%  %.  %[  %]  %*  %+  %-  %?`
-  if line:match('^%s*def mount%(') then
-    in_mount = true
-    print(line)
-  elseif in_mount and line:match('^%s*alias Shoppollama%.ShopifyClient') then
-    -- Add the Store alias alongside the existing ones
+  if line:match('^%s*alias Shoppollama%.ProductParser%s*$') then
+    -- Add the Store alias after ProductParser
     print(line)
     print('  alias Shoppollama.{Repo, Store}')
     did_change = true
