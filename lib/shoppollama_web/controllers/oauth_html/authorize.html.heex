@@ -82,7 +82,7 @@ end
 <!-- Custom App Form -->
     <div id="custom-app-form" class="hidden">
       <form action="/auth/shopify/custom" method="post" class="space-y-6">
-        <input type="hidden" name="_csrf_token" value={Phoenix.HTML.Form.csrf_token()} />
+        <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
 
         <div>
           <label for="custom_shop" class="block text-sm font-medium text-gray-300 mb-2">
