@@ -1,3 +1,70 @@
+local did_change = false
+
+for line in lines do
+  -- Fix the guard clause to check trimmed message instead of raw message
+  if line:match('^%s*def handle_event%(\"send_message\",%s*%%{\"message\"%s*=>.-%},%s*socket%)%s*when%s*message%s*!=%s*\"\"%s*do%s*$') then
+    print('  def handle_event("send_message", %{"message" => message}, socket) do')
+    print('    trimmed_message = String.trim(message)')
+    print('')
+    print('    if trimmed_message != "" do')
+    did_change = true
+  -- Update the function body to use trimmed_message
+  elseif line:match('^%s*user_message%s*=%s*%%{%s*$') then
+    print('      user_message = %{')
+    print('        id: System.unique_integer([:positive]),')
+    print('        role: :user,')
+    print('        content: trimmed_message,')
+    print('        timestamp: DateTime.utc_now()')
+    print('      }')
+    did_change = true
+  -- Skip the original content line since we replaced it above
+  elseif line:match('^%s*id:%s*System%.unique_integer') or 
+         line:match('^%s*role:%s*:user') or
+         line:match('^%s*content:%s*String%.trim') or
+         line:match('^%s*timestamp:%s*DateTime%.utc_now') then
+    -- Skip these lines as we've already printed them above
+  -- Update the routing logic to use trimmed_message
+  elseif line:match('^%s*cond%s*do%s*$') then
+    print('      # Check message type and route accordingly')
+    print('      cond do')
+    did_change = true
+  elseif line:match('ProductParser%.is_product_creation_request?%(message%)') then
+    print('        ProductParser.is_product_creation_request?(trimmed_message) ->')
+    print('          send(self(), {:create_product, trimmed_message})')
+    did_change = true
+  elseif line:match('is_store_query?%(message%)') then
+    print('')
+    print('        is_store_query?(trimmed_message) ->')
+    print('          send(self(), {:handle_store_query, trimmed_message})')
+    did_change = true
+  elseif line:match('send%(self%(%),%s*%{:call_ollama,%s*message%}%)') then
+    print('')
+    print('        true ->')
+    print('          send(self(), {:call_ollama, trimmed_message})')
+    print('      end')
+    did_change = true
+  -- Add the else clause and closing bracket
+  elseif line:match('^%s*%{:noreply,%s*$') then
+    print('')
+    print('      {:noreply,')
+    print('       socket')
+    print('       |> assign(:current_message, "")')
+    print('       |> assign(:thinking, true)}')
+    print('    else')
+    print('      {:noreply, socket}')
+    print('    end')
+    print('  end')
+    did_change = true
+  -- Skip the original function content that we're replacing
+  elseif line:match('^%s*socket%s*$') or 
+         line:match('^%s*|>%s*assign%(') or
+         line:match('^%s*|>%s*assign%(:thinking') or
+         line:match('^%s*%}%s*$') and did_change then
+    -- Skip these lines as they're part of the old implementation
+  else
+    print(line)
+  end
+end
 defmodule ShoppollamaWeb.ChatLive do
   use ShoppollamaWeb, :live_view
   alias Phoenix.PubSub
