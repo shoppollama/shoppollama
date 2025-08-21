@@ -1,3 +1,50 @@
+local in_send_message = false
+local in_handle_info_call_ollama = false
+local found_send_message = false
+local found_call_ollama = false
+local did_change = false
+
+for line in lines do
+  -- Fix the send_message event handler guard clause
+  if line:match('^%s*def handle_event%(\"send_message\",%s*%%{\"message\"%s*=>.-%},%s*socket%)%s*when%s*message%s*!=%s*\"\"') then
+    print('  def handle_event("send_message", %{"message" => message}, socket) when String.trim(message) != "" do')
+    found_send_message = true
+    did_change = true
+  -- Add the missing handle_info for :call_ollama if we haven't found it yet
+  elseif not found_call_ollama and line:match('^%s*@impl true%s*$') and lines[i+1] and lines[i+1]:match('^%s*def handle_info%(') then
+    -- Check if the next line is already handle_info for call_ollama
+    local next_line = lines[i+1] or ""
+    if not next_line:match('handle_info%(%{:call_ollama') then
+      print(line)
+      print('')
+      print('  @impl true')
+      print('  def handle_info({:call_ollama, message}, socket) do')
+      print('    # Simulate AI response for now - we\'ll replace with real Ollama integration')
+      print('    ai_response = generate_ai_response(message, socket.assigns.selected_model)')
+      print('')
+      print('    ai_message = %{')
+      print('      id: System.unique_integer([:positive]),')
+      print('      role: :assistant,')
+      print('      content: ai_response,')
+      print('      timestamp: DateTime.utc_now(),')
+      print('      model: socket.assigns.selected_model')
+      print('    }')
+      print('')
+      print('    {:noreply,')
+      print('     socket')
+      print('     |> stream_insert(:messages, ai_message)')
+      print('     |> assign(:thinking, false)}')
+      print('  end')
+      print('')
+      found_call_ollama = true
+      did_change = true
+    else
+      print(line)
+    end
+  else
+    print(line)
+  end
+end
 defmodule ShoppollamaWeb.ChatLive do
   use ShoppollamaWeb, :live_view
   alias Phoenix.PubSub
@@ -24,7 +71,7 @@ defmodule ShoppollamaWeb.ChatLive do
   end
 
   @impl true
-  def handle_event("send_message", %{"message" => message}, socket) when message != "" do
+  def handle_event("send_message", %{"message" => message}, socket) when String.trim(message) != "" do
     user_message = %{
       id: System.unique_integer([:positive]),
       role: :user,
