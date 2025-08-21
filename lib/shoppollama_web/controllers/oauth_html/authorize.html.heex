@@ -1,3 +1,19 @@
+local did_change = false
+
+for line in lines do
+-- Find the incorrect csrf_token function call and fix it
+if line:match('Phoenix%.HTML%.Form%.csrf_token%(%)') then
+-- Replace with the correct Phoenix function
+local updated = line:gsub(
+'Phoenix%.HTML%.Form%.csrf_token%(%)',
+'Phoenix.HTML.Form.csrf_token()'
+)
+print(updated)
+did_change = true
+else
+print(line)
+end
+end
 <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-6">
   <div class="bg-black/30 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8 w-full max-w-md">
     <div class="text-center mb-8">
