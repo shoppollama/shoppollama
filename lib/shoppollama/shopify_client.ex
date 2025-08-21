@@ -1,37 +1,3 @@
-local in_module = false
-local did_change = false
-
-for line in lines do
-  -- Match the end of the get_products function
-  if line:match('^%s*end%s*$') and in_module then
-    -- Print the existing end
-    print(line)
-    print('')
-    print('  def get_product_count do')
-    print('    headers = [')
-    print('      {"X-Shopify-Access-Token", get_access_token()}')
-    print('    ]')
-    print('')
-    print('    url = "#{@base_url}/admin/api/#{@api_version}/products/count.json"')
-    print('')
-    print('    case Req.get(url, headers: headers) do')
-    print('      {:ok, %{status: 200, body: response}} ->')
-    print('        {:ok, response["count"]}')
-    print('')
-    print('      {:error, reason} ->')
-    print('        Logger.error("Failed to fetch product count: #{inspect(reason)}")')
-    print('        {:error, reason}')
-    print('    end')
-    print('  end')
-    in_module = false
-    did_change = true
-  elseif line:match('^%s*defp get_access_token do%s*$') then
-    in_module = true
-    print(line)
-  else
-    print(line)
-  end
-end
 defmodule Shoppollama.ShopifyClient do
   @moduledoc """
   Handles Shopify API interactions for product management
