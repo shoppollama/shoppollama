@@ -37,11 +37,16 @@ defmodule ShoppollamaWeb.ChatLive do
     # Start thinking state
     socket = assign(socket, :thinking, true)
 
-    # Check if this is a product creation request
-    if ProductParser.is_product_creation_request?(message) do
-      send(self(), {:create_product, message})
-    else
-      send(self(), {:call_ollama, message})
+    # Check message type and route accordingly
+    cond do
+      ProductParser.is_product_creation_request?(message) ->
+        send(self(), {:create_product, message})
+
+      is_store_query?(message) ->
+        send(self(), {:handle_store_query, message})
+
+      true ->
+        send(self(), {:call_ollama, message})
     end
 
     {:noreply,
@@ -107,6 +112,24 @@ defmodule ShoppollamaWeb.ChatLive do
   end
 
   @impl true
+  def handle_info({:handle_store_query, message}, socket) do
+    response = handle_store_statistics(message)
+
+    ai_message = %{
+      id: System.unique_integer([:positive]),
+      role: :assistant,
+      content: response,
+      timestamp: DateTime.utc_now(),
+      model: socket.assigns.selected_model
+    }
+
+    {:noreply,
+     socket
+     |> stream_insert(:messages, ai_message)
+     |> assign(:thinking, false)}
+  end
+
+  @impl true
   def handle_info({:call_ollama, message}, socket) do
     # Simulate AI response for now - we'll replace with real Ollama integration
     ai_response = generate_ai_response(message, socket.assigns.selected_model)
@@ -140,6 +163,47 @@ defmodule ShoppollamaWeb.ChatLive do
 
     The product is now live and ready for customers! 🎉
     """
+  end
+
+  defp is_store_query?(message) do
+    message = String.downcase(message)
+
+    query_keywords = [
+      "how many products",
+      "product count",
+      "number of products",
+      "total products",
+      "how many items"
+    ]
+
+    Enum.any?(query_keywords, &String.contains?(message, &1))
+  end
+
+  defp handle_store_statistics(message) do
+    case ShopifyClient.get_product_count() do
+      {:ok, count} ->
+        """
+        📊 **Store Statistics**
+
+        You currently have **#{count} products** in your Silicon Valley Shirts store.
+
+        🏪 **Store Details:**
+        • Store: silicon-valley-shirts.myshopify.com
+        • Total Products: #{count}
+        • [View All Products](https://admin.shopify.com/store/silicon-valley-shirts/products)
+
+        💡 **Need help?** I can help you create more products, analyze your inventory, or manage your store!
+        """
+
+      {:error, error} ->
+        """
+        ❌ **Could not fetch store statistics**
+
+        Error: #{error}
+
+        Please make sure your SHOPIFY_ACCESS_TOKEN is set correctly in your environment variables.
+        """
+    end
   end
 
   # Simulate AI responses until we implement Ollama
