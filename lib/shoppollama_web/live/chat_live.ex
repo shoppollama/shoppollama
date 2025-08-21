@@ -1,38 +1,9 @@
-local in_mount = false
-local did_change = false
-
-for line in lines do
-  -- be mindful of any sibling function annotations that must stay attached
-  -- escape special chars with % when matching literally, ie:: `%^  %$  %(  %)  %%  %.  %[  %]  %*  %+  %-  %?`
-  if line:match('^%s*alias Shoppollama%.ProductParser%s*$') then
-    -- Add the Store alias after ProductParser
-    print(line)
-    print('  alias Shoppollama.{Repo, Store}')
-    did_change = true
-  elseif line:match('^%s*defp check_store_connection do') then
-    -- Replace the entire check_store_connection function
-    print('  defp check_store_connection do')
-    print('    case Repo.get_by(Store, is_active: true) do')
-    print('      nil -> false')
-    print('      _store -> true')
-    print('    end')
-    print('  end')
-    did_change = true
-    -- Skip the old implementation until we find 'end'
-    in_function = true
-  elseif in_function and line:match('^%s*end%s*$') then
-    in_function = false
-    -- Don't print this 'end' because we already printed it above
-  elseif not in_function then
-    print(line)
-  end
-end
 defmodule ShoppollamaWeb.ChatLive do
   use ShoppollamaWeb, :live_view
   alias Phoenix.PubSub
   alias Shoppollama.ShopifyClient
   alias Shoppollama.ProductParser
-  alias Shoppollama.{Repo, Store} # Added this line
+  alias Shoppollama.{Repo, Store}
 
   @impl true
   def mount(_params, _session, socket) do
