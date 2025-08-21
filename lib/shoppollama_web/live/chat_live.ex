@@ -1,3 +1,26 @@
+local in_event_handlers = false
+local did_change = false
+
+for line in lines do
+  -- Find the select_reasoning event handler and add connect_store after it
+  if line:match('^%s*def handle_event%("select_reasoning"') then
+    print(line)
+    in_event_handlers = true
+  elseif in_event_handlers and line:match('^%s*end%s*$') then
+    -- Print the end of select_reasoning handler
+    print(line)
+    print('')
+    -- Add the connect_store handler
+    print('  @impl true')
+    print('  def handle_event("connect_store", _params, socket) do')
+    print('    {:noreply, redirect(socket, to: "/auth/shopify")}')
+    print('  end')
+    in_event_handlers = false
+    did_change = true
+  else
+    print(line)
+  end
+end
 defmodule ShoppollamaWeb.ChatLive do
   use ShoppollamaWeb, :live_view
   alias Phoenix.PubSub
@@ -71,6 +94,11 @@ defmodule ShoppollamaWeb.ChatLive do
   @impl true
   def handle_event("select_reasoning", %{"reasoning" => reasoning}, socket) do
     {:noreply, assign(socket, :reasoning_effort, reasoning)}
+  end
+
+  @impl true
+  def handle_event("connect_store", _params, socket) do
+    {:noreply, redirect(socket, to: "/auth/shopify")}
   end
 
   @impl true
