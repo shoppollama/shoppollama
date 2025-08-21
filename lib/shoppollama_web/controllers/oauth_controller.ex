@@ -3,214 +3,6 @@ defmodule ShoppollamaWeb.OAuthController do
   require Logger
   alias Shoppollama.{Repo, Store}
 
-  @default_shopify_api_key "356e5aa3ba68f30312214f7cfdfd92da"
-  @redirect_uri "http://localhost:4000/auth/shopify/callback"
-  @scopes "read_products,write_products"
-
-  def authorize(conn, %{"shop" => shop, "custom_app_key" => custom_app_key}) when custom_app_key != "" do
-    # Use custom app credentials provided by user
-    shop = sanitize_shop_domain(shop)
-
-    if valid_shop_domain?(shop) do
-      # Generate state for CSRF protection
-      state = generate_state()
-
-      # Store state and custom app key in session
-      conn = 
-        conn
-        |> put_session(:oauth_state, state)
-        |> put_session(:custom_app_key, custom_app_key)
-
-      # Build authorization URL with custom app key
-      auth_url = build_auth_url(shop, state, custom_app_key)
-
-      redirect(conn, external: auth_url)
-    else
-      conn
-      |> put_flash(:error, "Invalid shop domain")
-      |> redirect(to: "/")
-    end
-  end
-
-  def authorize(conn, %{"shop" => shop}) do
-    # Use default app credentials
-    shop = sanitize_shop_domain(shop)
-
-    if valid_shop_domain?(shop) do
-      # Generate state for CSRF protection
-      state = generate_state()
-
-      # Store state in session
-      conn = put_session(conn, :oauth_state, state)
-
-      # Build authorization URL with default app key
-      auth_url = build_auth_url(shop, state, get_shopify_api_key())
-
-      redirect(conn, external: auth_url)
-    else
-      conn
-      |> put_flash(:error, "Invalid shop domain")
-      |> redirect(to: "/")
-    end
-  end
-
-  def authorize(conn, _params) do
-    # Render form to enter shop domain and optionally custom app credentials
-    render(conn, :authorize)
-  end
-
-  def callback(conn, %{"code" => code, "shop" => shop, "state" => state}) do
-    # Verify state for CSRF protection
-    session_state = get_session(conn, :oauth_state)
-
-    if state == session_state do
-      shop = sanitize_shop_domain(shop)
-      custom_app_key = get_session(conn, :custom_app_key)
-
-      case exchange_code_for_token(code, shop, custom_app_key) do
-        {:ok, access_token} ->
-          # Save store to database
-          store_params = %{
-            shop_domain: shop,
-            access_token: access_token,
-            shop_name: extract_shop_name(shop),
-            is_active: true
-          }
-
-          case create_or_update_store(store_params) do
-            {:ok, store} ->
-              # Store the access token securely in session
-              conn = 
-                conn
-                |> put_session(:shopify_access_token, access_token)
-                |> put_session(:shopify_shop, shop)
-                |> put_session(:store_id, store.id)
-                |> delete_session(:custom_app_key)  # Clean up custom app key
-
-              conn
-              |> put_flash(:info, "Successfully connected to Shopify store: #{shop}")
-              |> redirect(to: "/")
-
-            {:error, changeset} ->
-              Logger.error("Failed to save store: #{inspect(changeset.errors)}")
-
-              conn
-              |> put_flash(:error, "Connected to Shopify but failed to save store information")
-              |> redirect(to: "/")
-          end
-
-        {:error, reason} ->
-          Logger.error("OAuth token exchange failed: #{inspect(reason)}")
-
-          conn
-          |> put_flash(:error, "Failed to connect to Shopify: #{reason}")
-          |> redirect(to: "/")
-      end
-    else
-      conn
-      |> put_flash(:error, "Invalid OAuth state. Possible CSRF attack.")
-      |> redirect(to: "/")
-    end
-  end
-
-  def callback(conn, params) do
-    Logger.warning("OAuth callback missing required params: #{inspect(params)}")
-
-    conn
-    |> put_flash(:error, "OAuth callback failed - missing required parameters")
-    |> redirect(to: "/")
-  end
-
-  defp create_or_update_store(store_params) do
-    case Repo.get_by(Store, shop_domain: store_params.shop_domain) do
-      nil ->
-        # Create new store
-        %Store{}
-        |> Store.changeset(store_params)
-        |> Repo.insert()
-
-      existing_store ->
-        # Update existing store
-        existing_store
-        |> Store.changeset(store_params)
-        |> Repo.update()
-    end
-  end
-
-  defp extract_shop_name(shop_domain) do
-    shop_domain
-    |> String.replace(".myshopify.com", "")
-    |> String.replace("-", " ")
-    |> String.split(" ")
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
-  end
-
-  defp sanitize_shop_domain(shop) do
-    shop
-    |> String.trim()
-    |> String.downcase()
-    |> String.replace(~r/^https?:\/\//, "")
-    |> String.replace(~r/\/$/, "")
-    local did_change = false
-
-for line in lines do
-  -- Find the callback function and add custom app handler before it
-  if line:match('^%s*def callback%(') then
-    -- Add the custom app handler before the callback function
-    print('  def custom(conn, %{"shop" => shop, "api_key" => api_key, "api_secret" => api_secret, "access_token" => access_token}) do')
-    print('    # Validate shop domain')
-    print('    shop = sanitize_shop_domain(shop)')
-    print('')
-    print('    if valid_shop_domain?(shop) do')
-    print('      # Save custom app credentials to store')
-    print('      store_params = %{')
-    print('        shop_domain: shop,')
-    print('        access_token: access_token,')
-    print('        shop_name: extract_shop_name(shop),')
-    print('        is_active: true,')
-    print('        api_key: api_key,')
-    print('        api_secret: api_secret')
-    print('      }')
-    print('')
-    print('      case create_or_update_store(store_params) do')
-    print('        {:ok, store} ->')
-    print('          # Store the credentials securely in session')
-    print('          conn = put_session(conn, :shopify_access_token, access_token)')
-    print('          conn = put_session(conn, :shopify_shop, shop)')
-    print('          conn = put_session(conn, :store_id, store.id)')
-    print('')
-    print('          conn')
-    print('          |> put_flash(:info, "Successfully connected custom app to store: #{shop}")')
-    print('          |> redirect(to: "/")')
-    print('')
-    print('        {:error, changeset} ->')
-    print('          Logger.error("Failed to save custom app store: #{inspect(changeset.errors)}")')
-    print('')
-    print('          conn')
-    print('          |> put_flash(:error, "Failed to save custom app store information")')
-    print('          |> redirect(to: "/auth/shopify")')
-    print('      end')
-    print('    else')
-    print('      conn')
-    print('      |> put_flash(:error, "Invalid shop domain")')
-    print('      |> redirect(to: "/auth/shopify")')
-    print('    end')
-    print('  end')
-    print('')
-    -- Now print the original callback function
-    print(line)
-    did_change = true
-  else
-    print(line)
-  end
-end
-
-defmodule ShoppollamaWeb.OAuthController do
-  use ShoppollamaWeb, :controller
-  require Logger
-  alias Shoppollama.{Repo, Store}
-
   @shopify_api_key "356e5aa3ba68f30312214f7cfdfd92da"
   @redirect_uri "http://localhost:4000/auth/shopify/callback"
   @scopes "read_products,write_products"
@@ -243,11 +35,11 @@ defmodule ShoppollamaWeb.OAuthController do
   end
 
   def custom(conn, %{
-    "shop" => shop,
-    "api_key" => api_key,
-    "api_secret" => api_secret,
-    "access_token" => access_token
-  }) do
+        "shop" => shop,
+        "api_key" => api_key,
+        "api_secret" => api_secret,
+        "access_token" => access_token
+      }) do
     # Validate shop domain
     shop = sanitize_shop_domain(shop)
 
@@ -257,17 +49,17 @@ defmodule ShoppollamaWeb.OAuthController do
         shop_domain: shop,
         access_token: access_token,
         shop_name: extract_shop_name(shop),
-        is_active: true,
-        api_key: api_key,
-        api_secret: api_secret
+        is_active: true
       }
 
       case create_or_update_store(store_params) do
         {:ok, store} ->
           # Store the credentials securely in session
-          conn = put_session(conn, :shopify_access_token, access_token)
-          conn = put_session(conn, :shopify_shop, shop)
-          conn = put_session(conn, :store_id, store.id)
+          conn =
+            conn
+            |> put_session(:shopify_access_token, access_token)
+            |> put_session(:shopify_shop, shop)
+            |> put_session(:store_id, store.id)
 
           conn
           |> put_flash(:info, "Successfully connected custom app to store: #{shop}")
@@ -307,9 +99,11 @@ defmodule ShoppollamaWeb.OAuthController do
           case create_or_update_store(store_params) do
             {:ok, store} ->
               # Store the access token securely in session
-              conn = put_session(conn, :shopify_access_token, access_token)
-              conn = put_session(conn, :shopify_shop, shop)
-              conn = put_session(conn, :store_id, store.id)
+              conn =
+                conn
+                |> put_session(:shopify_access_token, access_token)
+                |> put_session(:shopify_shop, shop)
+                |> put_session(:store_id, store.id)
 
               conn
               |> put_flash(:info, "Successfully connected to Shopify store: #{shop}")
