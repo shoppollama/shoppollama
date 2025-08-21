@@ -1,6 +1,7 @@
 defmodule ShoppollamaWeb.OAuthController do
   use ShoppollamaWeb, :controller
   require Logger
+  alias Shoppollama.{Repo, Store}
 
   @shopify_api_key "356e5aa3ba68f30312214f7cfdfd92da"
   @redirect_uri "http://localhost:4000/auth/shopify/callback"
@@ -42,14 +43,32 @@ defmodule ShoppollamaWeb.OAuthController do
 
       case exchange_code_for_token(code, shop) do
         {:ok, access_token} ->
-          # Store the access token securely
-          # In production, you'd store this in your database
-          conn = put_session(conn, :shopify_access_token, access_token)
-          conn = put_session(conn, :shopify_shop, shop)
+          # Save store to database
+          store_params = %{
+            shop_domain: shop,
+            access_token: access_token,
+            shop_name: extract_shop_name(shop),
+            is_active: true
+          }
 
-          conn
-          |> put_flash(:info, "Successfully connected to Shopify store: #{shop}")
-          |> redirect(to: "/")
+          case create_or_update_store(store_params) do
+            {:ok, store} ->
+              # Store the access token securely in session
+              conn = put_session(conn, :shopify_access_token, access_token)
+              conn = put_session(conn, :shopify_shop, shop)
+              conn = put_session(conn, :store_id, store.id)
+
+              conn
+              |> put_flash(:info, "Successfully connected to Shopify store: #{shop}")
+              |> redirect(to: "/")
+
+            {:error, changeset} ->
+              Logger.error("Failed to save store: #{inspect(changeset.errors)}")
+
+              conn
+              |> put_flash(:error, "Connected to Shopify but failed to save store information")
+              |> redirect(to: "/")
+          end
 
         {:error, reason} ->
           Logger.error("OAuth token exchange failed: #{inspect(reason)}")
@@ -71,6 +90,31 @@ defmodule ShoppollamaWeb.OAuthController do
     conn
     |> put_flash(:error, "OAuth callback failed - missing required parameters")
     |> redirect(to: "/")
+  end
+
+  defp create_or_update_store(store_params) do
+    case Repo.get_by(Store, shop_domain: store_params.shop_domain) do
+      nil ->
+        # Create new store
+        %Store{}
+        |> Store.changeset(store_params)
+        |> Repo.insert()
+
+      existing_store ->
+        # Update existing store
+        existing_store
+        |> Store.changeset(store_params)
+        |> Repo.update()
+    end
+  end
+
+  defp extract_shop_name(shop_domain) do
+    shop_domain
+    |> String.replace(".myshopify.com", "")
+    |> String.replace("-", " ")
+    |> String.split(" ")
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join(" ")
   end
 
   defp sanitize_shop_domain(shop) do
