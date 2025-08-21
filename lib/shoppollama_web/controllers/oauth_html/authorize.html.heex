@@ -5,39 +5,160 @@
         <span class="text-white font-bold text-2xl">S</span>
       </div>
       <h1 class="text-white text-2xl font-bold mb-2">Connect Your Shopify Store</h1>
-      <p class="text-gray-300 text-sm">Enter your store domain to authorize ShoppOllama</p>
+      <p class="text-gray-300 text-sm">Choose how to connect your store</p>
     </div>
+    
+<!-- App Type Selection -->
+    <div class="mb-6">
+      <div class="flex bg-gray-800/50 rounded-xl p-1 mb-4">
+        <button
+          type="button"
+          id="default-app-btn"
+          onclick="showDefaultApp()"
+          class="flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-colors bg-purple-600 text-white"
+        >
+          Default App
+        </button>
+        <button
+          type="button"
+          id="custom-app-btn"
+          onclick="showCustomApp()"
+          class="flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-colors text-gray-300 hover:text-white"
+        >
+          Custom App
+        </button>
+      </div>
+    </div>
+    
+<!-- Default App Form -->
+    <div id="default-app-form">
+      <form action="/auth/shopify" method="get" class="space-y-6">
+        <div>
+          <label for="shop" class="block text-sm font-medium text-gray-300 mb-2">
+            Store Domain
+          </label>
+          <div class="relative">
+            <input
+              type="text"
+              id="shop"
+              name="shop"
+              placeholder="your-store-name"
+              required
+              class="w-full bg-gray-800/50 border border-gray-600/50 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 pr-32"
+            />
+            <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">
+              .myshopify.com
+            </span>
+          </div>
+          <p class="text-gray-400 text-xs mt-2">
+            Enter just the store name (e.g., "my-store" for my-store.myshopify.com)
+          </p>
+        </div>
 
-    <form action="/auth/shopify" method="get" class="space-y-6">
-      <div>
-        <label for="shop" class="block text-sm font-medium text-gray-300 mb-2">
-          Store Domain
-        </label>
-        <div class="relative">
+        <button
+          type="submit"
+          class="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-medium py-3 px-4 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+        >
+          Connect with Default App
+        </button>
+      </form>
+    </div>
+    
+<!-- Custom App Form -->
+    <div id="custom-app-form" class="hidden">
+      <form action="/auth/shopify/custom" method="post" class="space-y-6">
+        <input type="hidden" name="_csrf_token" value={Phoenix.HTML.Form.csrf_token()} />
+
+        <div>
+          <label for="custom_shop" class="block text-sm font-medium text-gray-300 mb-2">
+            Store Domain
+          </label>
+          <div class="relative">
+            <input
+              type="text"
+              id="custom_shop"
+              name="shop"
+              placeholder="your-store-name"
+              required
+              class="w-full bg-gray-800/50 border border-gray-600/50 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 pr-32"
+            />
+            <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">
+              .myshopify.com
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <label for="api_key" class="block text-sm font-medium text-gray-300 mb-2">
+            API Key
+          </label>
           <input
             type="text"
-            id="shop"
-            name="shop"
-            placeholder="your-store-name"
+            id="api_key"
+            name="api_key"
+            placeholder="your_api_key_here"
             required
-            class="w-full bg-gray-800/50 border border-gray-600/50 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 pr-32"
+            class="w-full bg-gray-800/50 border border-gray-600/50 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
           />
-          <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">
-            .myshopify.com
-          </span>
         </div>
-        <p class="text-gray-400 text-xs mt-2">
-          Enter just the store name (e.g., "my-store" for my-store.myshopify.com)
-        </p>
-      </div>
 
-      <button
-        type="submit"
-        class="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-medium py-3 px-4 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-      >
-        Connect to Shopify
-      </button>
-    </form>
+        <div>
+          <label for="api_secret" class="block text-sm font-medium text-gray-300 mb-2">
+            API Secret Key
+          </label>
+          <input
+            type="password"
+            id="api_secret"
+            name="api_secret"
+            placeholder="your_api_secret_here"
+            required
+            class="w-full bg-gray-800/50 border border-gray-600/50 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+          />
+        </div>
+
+        <div>
+          <label for="access_token" class="block text-sm font-medium text-gray-300 mb-2">
+            Admin API Access Token
+          </label>
+          <input
+            type="password"
+            id="access_token"
+            name="access_token"
+            placeholder="shpat_your_access_token_here"
+            required
+            class="w-full bg-gray-800/50 border border-gray-600/50 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+          />
+        </div>
+
+        <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+          <div class="flex items-start space-x-3">
+            <div class="w-5 h-5 text-yellow-400 mt-0.5">
+              <svg fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd"
+                >
+                </path>
+              </svg>
+            </div>
+            <div>
+              <p class="text-yellow-200 text-sm font-medium">Security Notice</p>
+              <p class="text-yellow-200/80 text-xs mt-1">
+                Your credentials are stored securely and only used to connect to your store. They are not shared with third parties.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          class="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-medium py-3 px-4 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+        >
+          Connect with Custom App
+        </button>
+      </form>
+    </div>
 
     <div class="mt-6 text-center">
       <a href="/" class="text-purple-300 hover:text-purple-200 text-sm underline">
@@ -45,4 +166,24 @@
       </a>
     </div>
   </div>
+
+  <script>
+    function showDefaultApp() {
+      document.getElementById('default-app-form').classList.remove('hidden');
+      document.getElementById('custom-app-form').classList.add('hidden');
+      document.getElementById('default-app-btn').classList.add('bg-purple-600', 'text-white');
+      document.getElementById('default-app-btn').classList.remove('text-gray-300');
+      document.getElementById('custom-app-btn').classList.remove('bg-purple-600', 'text-white');
+      document.getElementById('custom-app-btn').classList.add('text-gray-300');
+    }
+
+    function showCustomApp() {
+      document.getElementById('default-app-form').classList.add('hidden');
+      document.getElementById('custom-app-form').classList.remove('hidden');
+      document.getElementById('custom-app-btn').classList.add('bg-purple-600', 'text-white');
+      document.getElementById('custom-app-btn').classList.remove('text-gray-300');
+      document.getElementById('default-app-btn').classList.remove('bg-purple-600', 'text-white');
+      document.getElementById('default-app-btn').classList.add('text-gray-300');
+    }
+  </script>
 </div>
