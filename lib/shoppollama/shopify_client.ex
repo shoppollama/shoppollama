@@ -1,27 +1,3 @@
-local did_change = false
-
-for line in lines do
-  -- Replace the get_access_token function to use database
-  if line:match('^%s*defp get_access_token do%s*$') then
-    print('  defp get_access_token do')
-    print('    case Shoppollama.Repo.get_by(Shoppollama.Store, is_active: true) do')
-    print('      %{access_token: token} -> token')
-    print('      nil -> System.get_env("SHOPIFY_ACCESS_TOKEN") ||')
-    print('             raise "No active store found and SHOPIFY_ACCESS_TOKEN environment variable not set"')
-    print('    end')
-    did_change = true
-  elseif line:match('^%s*System%.get_env%(\"SHOPIFY_ACCESS_TOKEN\"%)') then
-    -- Skip the old implementation lines until we hit the next function
-    -- Keep skipping until we find the 'end' of this function
-  elseif line:match('^%s*raise \"SHOPIFY_ACCESS_TOKEN environment variable not set\"%s*$') then
-    -- Skip this line too, part of old implementation
-  elseif line:match('^%s*end%s*$') and did_change then
-    print('  end')
-    did_change = false
-  else
-    print(line)
-  end
-end
 defmodule Shoppollama.ShopifyClient do
   @moduledoc """
   Handles Shopify API interactions for product management
@@ -136,9 +112,12 @@ defmodule Shoppollama.ShopifyClient do
 
   defp get_access_token do
     case Repo.get_by(Store, is_active: true) do
-      %{access_token: token} -> token
-      nil -> System.get_env("SHOPIFY_ACCESS_TOKEN") ||
-             raise "No active store found and SHOPIFY_ACCESS_TOKEN environment variable not set"
+      %{access_token: token} ->
+        token
+
+      nil ->
+        System.get_env("SHOPIFY_ACCESS_TOKEN") ||
+          raise "No active store found and SHOPIFY_ACCESS_TOKEN environment variable not set"
     end
   end
 end
