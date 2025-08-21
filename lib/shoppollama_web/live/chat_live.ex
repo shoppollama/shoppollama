@@ -1,6 +1,8 @@
 defmodule ShoppollamaWeb.ChatLive do
   use ShoppollamaWeb, :live_view
   alias Phoenix.PubSub
+  alias Shoppollama.ShopifyClient
+  alias Shoppollama.ProductParser
 
   @impl true
   def mount(_params, _session, socket) do
@@ -15,7 +17,7 @@ defmodule ShoppollamaWeb.ChatLive do
      |> assign(:selected_model, "gpt-oss:20b")
      |> assign(:reasoning_effort, "medium")
      |> assign(:ollama_connected, true)
-     |> assign(:store_connected, false)
+     |> assign(:store_connected, check_store_connection())
      |> assign(:thinking, false)
      |> stream(:messages, [])}
   end
@@ -35,8 +37,12 @@ defmodule ShoppollamaWeb.ChatLive do
     # Start thinking state
     socket = assign(socket, :thinking, true)
 
-    # Send to Ollama (we'll implement this service next)
-    send(self(), {:call_ollama, message})
+    # Check if this is a product creation request
+    if ProductParser.is_product_creation_request?(message) do
+      send(self(), {:create_product, message})
+    else
+      send(self(), {:call_ollama, message})
+    end
 
     {:noreply,
      socket
@@ -62,6 +68,45 @@ defmodule ShoppollamaWeb.ChatLive do
   end
 
   @impl true
+  def handle_info({:create_product, message}, socket) do
+    # Parse the product details from the message
+    product_data = ProductParser.parse_product_message(message)
+
+    case ShopifyClient.create_product(product_data) do
+      {:ok, product} ->
+        ai_message = %{
+          id: System.unique_integer([:positive]),
+          role: :assistant,
+          content: create_success_message(product),
+          timestamp: DateTime.utc_now(),
+          model: socket.assigns.selected_model
+        }
+
+        {:noreply,
+         socket
+         |> stream_insert(:messages, ai_message)
+         |> assign(:thinking, false)
+         |> assign(:store_connected, true)}
+
+      {:error, error} ->
+        ai_message = %{
+          id: System.unique_integer([:positive]),
+          role: :assistant,
+          content:
+            "❌ Sorry, I couldn't create the product: #{error}\n\nMake sure your SHOPIFY_ACCESS_TOKEN is set correctly in your environment variables.",
+          timestamp: DateTime.utc_now(),
+          model: socket.assigns.selected_model
+        }
+
+        {:noreply,
+         socket
+         |> stream_insert(:messages, ai_message)
+         |> assign(:thinking, false)
+         |> assign(:store_connected, false)}
+    end
+  end
+
+  @impl true
   def handle_info({:call_ollama, message}, socket) do
     # Simulate AI response for now - we'll replace with real Ollama integration
     ai_response = generate_ai_response(message, socket.assigns.selected_model)
@@ -80,6 +125,23 @@ defmodule ShoppollamaWeb.ChatLive do
      |> assign(:thinking, false)}
   end
 
+  defp create_success_message(product) do
+    """
+    ✅ **Product created successfully!**
+
+    **#{product.title}** has been added to your Shopify store.
+
+    🔗 **Quick Links:**
+    • [View in Admin](#{product.admin_url}) - Edit and manage the product
+    • [View in Store](#{product.store_url}) - See how customers will see it
+
+    Product ID: `#{product.id}`
+    Handle: `#{product.handle}`
+
+    The product is now live and ready for customers! 🎉
+    """
+  end
+
   # Simulate AI responses until we implement Ollama
   defp generate_ai_response(message, model) do
     # Simulate thinking time
@@ -90,13 +152,21 @@ defmodule ShoppollamaWeb.ChatLive do
         "I can help you connect your Shopify store! Once connected, I'll be able to analyze your products, orders, and customers. Would you like me to guide you through the setup process?"
 
       String.contains?(String.downcase(message), "product") ->
-        "I'd be happy to help with product management! I can assist with generating descriptions, optimizing titles, managing inventory, and analyzing product performance. What specific product tasks can I help you with?"
+        "I'd be happy to help with product management! I can assist with generating descriptions, optimizing titles, managing inventory, and analyzing product performance. What specific product tasks can I help you with?\n\n💡 **Try saying**: \"Create a black t-shirt for $25\" to see me create a product in your store!"
 
       String.contains?(String.downcase(message), "sales") ->
         "Sales analytics are one of my specialties! I can help you track revenue trends, identify best-selling products, analyze customer behavior, and optimize your sales funnel. Connect your store to get detailed insights."
 
       true ->
-        "Hello! I'm ShoppOllama, your AI-powered Shopify assistant running on #{model}. I can help you manage your store, analyze data, automate tasks, and much more. How can I assist you today?"
+        "Hello! I'm ShoppOllama, your AI-powered Shopify assistant running on #{model}. I can help you manage your store, analyze data, automate tasks, and much more. How can I assist you today?\n\n💡 **Try creating a product**: \"Create a red hoodie for $45\""
+    end
+  end
+
+  defp check_store_connection do
+    case System.get_env("SHOPIFY_ACCESS_TOKEN") do
+      nil -> false
+      "" -> false
+      _token -> true
     end
   end
 end
