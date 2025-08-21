@@ -6,16 +6,18 @@ defmodule Shoppollama.ShopifyClient do
   require Logger
   alias Shoppollama.{Repo, Store}
 
-  @base_url "https://silicon-valley-shirts.myshopify.com"
   @api_version "2024-07"
 
   def create_product(product_data) do
+    store = get_active_store()
+
     headers = [
       {"Content-Type", "application/json"},
-      {"X-Shopify-Access-Token", get_access_token()}
+      {"X-Shopify-Access-Token", store.access_token}
     ]
 
-    url = "#{@base_url}/admin/api/#{@api_version}/products.json"
+    base_url = "https://#{store.shop_domain}"
+    url = "#{base_url}/admin/api/#{@api_version}/products.json"
 
     body = %{
       product: %{
@@ -39,8 +41,9 @@ defmodule Shoppollama.ShopifyClient do
       {:ok, %{status: 201, body: response}} ->
         product = response["product"]
 
-        admin_url =
-          "https://admin.shopify.com/store/silicon-valley-shirts/products/#{product["id"]}"
+        # Extract store name from domain for admin URL
+        store_name = store.shop_domain |> String.replace(".myshopify.com", "")
+        admin_url = "https://admin.shopify.com/store/#{store_name}/products/#{product["id"]}"
 
         {:ok,
          %{
@@ -48,7 +51,7 @@ defmodule Shoppollama.ShopifyClient do
            title: product["title"],
            handle: product["handle"],
            admin_url: admin_url,
-           store_url: "#{@base_url}/products/#{product["handle"]}"
+           store_url: "#{base_url}/products/#{product["handle"]}"
          }}
 
       {:ok, %{status: status, body: body}} ->
@@ -62,22 +65,26 @@ defmodule Shoppollama.ShopifyClient do
   end
 
   def get_products(limit \\ 10) do
+    store = get_active_store()
+
     headers = [
-      {"X-Shopify-Access-Token", get_access_token()}
+      {"X-Shopify-Access-Token", store.access_token}
     ]
 
-    url = "#{@base_url}/admin/api/#{@api_version}/products.json?limit=#{limit}"
+    base_url = "https://#{store.shop_domain}"
+    url = "#{base_url}/admin/api/#{@api_version}/products.json?limit=#{limit}"
 
     case Req.get(url, headers: headers) do
       {:ok, %{status: 200, body: response}} ->
+        store_name = store.shop_domain |> String.replace(".myshopify.com", "")
+
         products =
           Enum.map(response["products"], fn product ->
             %{
               id: product["id"],
               title: product["title"],
               handle: product["handle"],
-              admin_url:
-                "https://admin.shopify.com/store/silicon-valley-shirts/products/#{product["id"]}"
+              admin_url: "https://admin.shopify.com/store/#{store_name}/products/#{product["id"]}"
             }
           end)
 
@@ -90,11 +97,14 @@ defmodule Shoppollama.ShopifyClient do
   end
 
   def get_product_count do
+    store = get_active_store()
+
     headers = [
-      {"X-Shopify-Access-Token", get_access_token()}
+      {"X-Shopify-Access-Token", store.access_token}
     ]
 
-    url = "#{@base_url}/admin/api/#{@api_version}/products/count.json"
+    base_url = "https://#{store.shop_domain}"
+    url = "#{base_url}/admin/api/#{@api_version}/products/count.json"
 
     case Req.get(url, headers: headers) do
       {:ok, %{status: 200, body: response}} ->
@@ -107,6 +117,16 @@ defmodule Shoppollama.ShopifyClient do
       {:error, reason} ->
         Logger.error("Request failed (count): #{inspect(reason)}")
         {:error, reason}
+    end
+  end
+
+  defp get_active_store do
+    case Repo.get_by(Store, is_active: true) do
+      %Store{} = store ->
+        store
+
+      nil ->
+        raise "No active store found. Please connect a Shopify store first."
     end
   end
 
