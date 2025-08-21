@@ -1,18 +1,3 @@
-local did_change = false
-
-for line in lines do
-  -- Find the existing shopify auth routes and add the custom route
-  if line:match('get "/auth/shopify/callback"') then
-    -- Print the callback route
-    print(line)
-    -- Add the custom app route
-    print('    post "/auth/shopify/custom", OAuthController, :custom')
-    did_change = true
-  else
-    print(line)
-  end
-end
-
 defmodule ShoppollamaWeb.Router do
   use ShoppollamaWeb, :router
 
