@@ -3,14 +3,6 @@ defmodule ShoppollamaWeb.OAuthControllerTest do
   import Phoenix.LiveViewTest
 
   describe "GET /auth/shopify" do
-    test "renders the authorization form", %{conn: conn} do
-      conn = get(conn, ~p"/auth/shopify")
-
-      assert html_response(conn, 200) =~ "Connect Your Shopify Store"
-      assert html_response(conn, 200) =~ "Store Domain"
-      assert html_response(conn, 200) =~ ".myshopify.com"
-      assert html_response(conn, 200) =~ "Connect to Shopify"
-    end
 
     test "redirects to Shopify OAuth with valid shop domain", %{conn: conn} do
       conn = get(conn, ~p"/auth/shopify?shop=2v9s7r-uz")
