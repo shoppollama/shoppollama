@@ -35,6 +35,11 @@ defmodule ShoppollamaWeb.Endpoint do
     plug Phoenix.Ecto.CheckRepoStatus, otp_app: :shoppollama
   end
 
+  # Add Tidewave plug for development
+  if Code.ensure_loaded?(Tidewave) do
+    plug Tidewave
+  end
+
   plug Phoenix.LiveDashboard.RequestLogger,
     param_key: "request_logger",
     cookie_key: "request_logger"
