@@ -14,6 +14,7 @@ defmodule Shoppollama.Application do
        repos: Application.fetch_env!(:shoppollama, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:shoppollama, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Shoppollama.PubSub},
+      {Shoppollama.MessageStore, []},
       # Start a worker by calling: Shoppollama.Worker.start_link(arg)
       # {Shoppollama.Worker, arg},
       # Start to serve requests, typically the last entry

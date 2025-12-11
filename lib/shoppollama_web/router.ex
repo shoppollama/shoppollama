@@ -19,6 +19,9 @@ defmodule ShoppollamaWeb.Router do
 
     live "/", ChatLive
 
+    # Product page route
+    get "/p/:product_id", PageController, :product
+
     # OAuth routes for Shopify
     get "/auth/shopify", OAuthController, :authorize
     get "/auth/shopify/callback", OAuthController, :callback
@@ -26,9 +29,11 @@ defmodule ShoppollamaWeb.Router do
   end
 
   # Other scopes may use custom stacks.
-  # scope "/api", ShoppollamaWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", ShoppollamaWeb do
+    pipe_through :api
+    
+    get "/products/:id/image", ProductController, :show_image
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:shoppollama, :dev_routes) do

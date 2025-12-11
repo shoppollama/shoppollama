@@ -1,0 +1,95 @@
+:root {
+  --background: #fff;
+  --foreground: #222;
+  --card: #fff;
+  --card-foreground: #222;
+  --popover: #fff;
+  --popover-foreground: #222;
+  --primary: oklch(0.7 0.15 280);
+  --primary-foreground: #fff;
+  --secondary: #f6f6f8;
+  --secondary-foreground: #222;
+  --muted: #f0f0f3;
+  --muted-foreground: #888;
+  --accent: oklch(0.7 0.15 140);
+  --accent-foreground: #fff;
+  --destructive: #e57373;
+  --destructive-foreground: #fff;
+  --border: #e5e7eb;
+  --input: #f6f6f8;
+  --ring: oklch(0.7 0.15 280);
+  --chart-1: oklch(0.7 0.15 280);
+  --chart-2: oklch(0.7 0.15 140);
+  --chart-3: #f6c;
+  --chart-4: #c6f;
+  --chart-5: #6fc;
+  --sidebar: #f6f6f8;
+  --sidebar-foreground: #222;
+  --sidebar-primary: oklch(0.7 0.15 280);
+  --sidebar-primary-foreground: #fff;
+  --sidebar-accent: oklch(0.7 0.15 140);
+  --sidebar-accent-foreground: #fff;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: oklch(0.7 0.15 280);
+  --font-sans: 'Inter', 'Open Sans', 'Poppins', 'Geist', sans-serif;
+  --font-serif: 'Merriweather', 'Lora', serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --radius: 12px;
+  --shadow-2xs: 0 1px 2px 0 rgba(0,0,0,0.02);
+  --shadow-xs: 0 1.5px 4px 0 rgba(0,0,0,0.03);
+  --shadow-sm: 0 2px 8px 0 rgba(0,0,0,0.04);
+  --shadow: 0 4px 24px 0 rgba(0,0,0,0.06);
+  --shadow-md: 0 8px 32px 0 rgba(0,0,0,0.08);
+  --shadow-lg: 0 16px 48px 0 rgba(0,0,0,0.10);
+  --shadow-xl: 0 24px 64px 0 rgba(0,0,0,0.12);
+  --shadow-2xl: 0 32px 96px 0 rgba(0,0,0,0.14);
+  --tracking-normal: 0em;
+  --spacing: 1.5rem;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+}
+
+body {
+  font-family: var(--font-sans) !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  letter-spacing: var(--tracking-normal) !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans) !important;
+  color: var(--foreground) !important;
+  font-weight: 600 !important;
+}
+
+input, select, textarea {
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--border) !important;
+  background: var(--input) !important;
+  color: var(--foreground) !important;
+  font-family: var(--font-sans) !important;
+}
+
+.card {
+  background: var(--card) !important;
+  color: var(--card-foreground) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.selected {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  background: var(--muted);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}

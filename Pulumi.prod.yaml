@@ -1,0 +1,4 @@
+config:
+  aws:region: us-east-1
+  shoppollama:instanceType: t3.medium
+  shoppollama:environment: prod

@@ -1,0 +1,128 @@
+:root {
+  --background: linear-gradient(135deg, oklch(0.25 0.15 300) 0%, oklch(0.35 0.18 320) 100%);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.18 0.08 300 / 0.7);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.22 0.10 320 / 0.85);
+  --popover-foreground: oklch(0.98 0 0);
+  --primary: oklch(0.65 0.22 320);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.40 0.10 320);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.22 0.05 300);
+  --muted-foreground: oklch(0.80 0 0);
+  --accent: oklch(0.80 0.18 120);
+  --accent-foreground: oklch(0.15 0 0);
+  --destructive: oklch(0.60 0.20 30);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.30 0.08 320);
+  --input: oklch(0.30 0.08 320);
+  --ring: oklch(0.65 0.22 320);
+  --chart-1: oklch(0.65 0.22 320);
+  --chart-2: oklch(0.80 0.18 120);
+  --chart-3: oklch(0.60 0.20 30);
+  --chart-4: oklch(0.40 0.10 320);
+  --chart-5: oklch(0.22 0.10 320);
+  --sidebar: oklch(0.18 0.08 300 / 0.7);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.65 0.22 320);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.80 0.18 120);
+  --sidebar-accent-foreground: oklch(0.15 0 0);
+  --sidebar-border: oklch(0.30 0.08 320);
+  --sidebar-ring: oklch(0.65 0.22 320);
+  --font-sans: 'Inter', 'Plus Jakarta Sans', 'Poppins', sans-serif;
+  --font-serif: 'Merriweather', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 1rem;
+  --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 0.10);
+  --shadow-sm: 0 2px 4px 0 oklch(0 0 0 / 0.12);
+  --shadow-md: 0 4px 8px 0 oklch(0 0 0 / 0.14);
+  --shadow-lg: 0 8px 16px 0 oklch(0 0 0 / 0.16);
+  --shadow-xl: 0 16px 32px 0 oklch(0 0 0 / 0.18);
+  --shadow-2xl: 0 24px 48px 0 oklch(0 0 0 / 0.20);
+  --tracking-normal: 0em;
+  --spacing: 1rem;
+}
+
+body {
+  font-family: var(--font-sans) !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans) !important;
+  color: var(--foreground) !important;
+}
+
+.card, .product-preview {
+  background: var(--card) !important;
+  color: var(--card-foreground) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-md) !important;
+  padding: var(--spacing) !important;
+  margin-bottom: var(--spacing) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+input, textarea {
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border-radius: var(--radius) !important;
+  border: 1px solid var(--border) !important;
+  padding: 0.75rem 1rem !important;
+  font-size: 1rem !important;
+}
+
+button, .btn {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-radius: var(--radius) !important;
+  padding: 0.75rem 1.5rem !important;
+  font-weight: 600 !important;
+  box-shadow: var(--shadow-sm) !important;
+  border: none !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+
+button:active, .btn:active {
+  transform: scale(0.97) !important;
+  box-shadow: var(--shadow-xs) !important;
+}
+
+.header {
+  background: transparent !important;
+  color: var(--foreground) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 1.2rem !important;
+  font-weight: 700 !important;
+  padding: 1rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+}
+
+.sticky-bottom {
+  position: sticky !important;
+  bottom: 0 !important;
+  background: var(--card) !important;
+  padding: 0.5rem 1rem !important;
+  box-shadow: var(--shadow-md) !important;
+  z-index: 10 !important;
+}
+
+::-webkit-scrollbar {
+  width: 0.3em;
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 1em;
+}

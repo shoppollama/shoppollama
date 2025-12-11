@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Product Details (Expanded) - ShoppOllama Mobile</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:400,500,600&display=swap" />
+  <link rel="stylesheet" href="design_iterations/mobile_vibrant_theme.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flowbite@2.0.0/dist/flowbite.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .slide-in {
+      animation: slideInUp 0.35s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes slideInUp {
+      from { opacity: 0; transform: translateY(60px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .glass {
+      background: var(--card);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow-lg);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)]" style="font-family: var(--font-sans);">
+  <!-- Expanded Product Preview Overlay -->
+  <div class="fixed inset-0 z-40 flex flex-col bg-[var(--background)] slide-in">
+    <header class="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--background)]">
+      <button onclick="window.history.back()" class="btn px-2 py-2 rounded-full" aria-label="Back to chat">
+        <i data-lucide="arrow-left"></i>
+      </button>
+      <span class="font-semibold text-base">Product Details</span>
+      <span></span>
+    </header>
+    <main class="flex-1 flex flex-col items-center justify-start px-4 py-6 overflow-y-auto">
+      <img src="https://placehold.co/160x160" alt="Product" class="rounded-2xl w-40 h-40 object-cover border border-[var(--border)] mb-4" />
+      <div class="font-bold text-2xl mb-1">Dreams of My Papa</div>
+      <div class="text-lg text-[var(--muted-foreground)] mb-2">$12.30</div>
+      <div class="text-sm text-[var(--muted-foreground)] mb-4">Coming next month</div>
+      <div class="glass w-full rounded-xl p-4 mb-4">
+        <div class="font-semibold mb-1">Description</div>
+        <div class="text-sm">A soulful album inspired by family stories. Available soon for pre-order.</div>
+      </div>
+      <div class="flex gap-3 w-full mb-4">
+        <button class="btn flex-1">Edit</button>
+        <button class="btn flex-1 bg-[var(--accent)] text-[var(--accent-foreground)]">View in Store</button>
+      </div>
+      <div class="flex gap-3 w-full">
+        <button class="btn flex-1 bg-[var(--destructive)] text-[var(--destructive-foreground)]">Delete</button>
+        <button class="btn flex-1 bg-[var(--muted)] text-[var(--foreground)]">Share</button>
+      </div>
+    </main>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

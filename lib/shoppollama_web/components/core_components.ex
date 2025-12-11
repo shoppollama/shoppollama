@@ -465,4 +465,33 @@ defmodule ShoppollamaWeb.CoreComponents do
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
   end
+
+  @doc """
+  Converts URLs in text to clickable links.
+  """
+  def linkify_text(text) when is_binary(text) do
+    # Regex to match URLs (http, https, and www)
+    url_regex = ~r/(https?:\/\/[^\s]+|www\.[^\s]+)/i
+    
+    # Split text by URLs and convert URLs to links
+    parts = Regex.split(url_regex, text, include_captures: true)
+    
+    html_parts = parts
+    |> Enum.map(fn part ->
+      if Regex.match?(url_regex, part) do
+        # Ensure URL has protocol
+        href = if String.starts_with?(part, "www."), do: "http://#{part}", else: part
+        escaped_href = Phoenix.HTML.html_escape(href) |> Phoenix.HTML.safe_to_string()
+        escaped_part = Phoenix.HTML.html_escape(part) |> Phoenix.HTML.safe_to_string()
+        "<a href=\"#{escaped_href}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"text-blue-600 hover:text-blue-800 underline\">#{escaped_part}</a>"
+      else
+        Phoenix.HTML.html_escape(part) |> Phoenix.HTML.safe_to_string()
+      end
+    end)
+    |> Enum.join("")
+    
+    Phoenix.HTML.raw(html_parts)
+  end
+  
+  def linkify_text(text), do: text
 end

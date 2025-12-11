@@ -1,0 +1,23 @@
+{
+  "name": "shoppollama-infrastructure",
+  "version": "1.0.0",
+  "description": "Pulumi infrastructure for Shoppollama deployment",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "pulumi": "pulumi",
+    "pulumi:up": "pulumi up",
+    "pulumi:destroy": "pulumi destroy",
+    "pulumi:preview": "pulumi preview"
+  },
+  "dependencies": {
+    "@pulumi/pulumi": "^3.112.0",
+    "@pulumi/aws": "^5.0.0",
+    "@pulumi/awsx": "^0.40.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

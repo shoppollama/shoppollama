@@ -15,7 +15,6 @@ defmodule Shoppollama.Store do
   def changeset(store, attrs) do
     store
     |> cast(attrs, [:shop_domain, :access_token, :shop_name, :is_active])
-    |> validate_required([:shop_domain, :access_token])
     |> unique_constraint(:shop_domain)
     |> validate_format(:shop_domain, ~r/^[a-zA-Z0-9\-]+\.myshopify\.com$/)
   end

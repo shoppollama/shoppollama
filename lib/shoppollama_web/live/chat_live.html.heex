@@ -1,185 +1,880 @@
-<Layouts.app flash={@flash}>
-  <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
-    <!-- Header -->
-    <header class="bg-black/30 backdrop-blur-sm border-b border-purple-500/30 p-4">
-      <div class="max-w-6xl mx-auto flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-sm">S</span>
-          </div>
-          <h1 class="text-white text-xl font-bold">ShoppOllama</h1>
-          <span class="text-purple-300 text-sm">AI Commerce Assistant</span>
-        </div>
-        <div class="flex items-center space-x-4">
-          <div class="bg-green-500/20 border border-green-500/30 rounded-full px-3 py-1">
-            <span class="text-green-400 text-xs font-medium">
-              <%= if @ollama_connected do %>
-                ● {@selected_model} Ready
-              <% else %>
-                ● Ollama Disconnected
-              <% end %>
-            </span>
-          </div>
-          <button
-            class={[
-              "px-4 py-2 rounded-lg font-medium transition-colors",
-              if(@store_connected,
-                do: "bg-green-600/80 hover:bg-green-600 text-white",
-                else: "bg-purple-600/80 hover:bg-purple-600 text-white"
-              )
-            ]}
-            phx-click="connect_store"
-            disabled={@store_connected}
-          >
-            {if @store_connected, do: "Store Connected", else: "Connect Store"}
-          </button>
-        </div>
-      </div>
-    </header>
+<style>
+  /* Mobile-first responsive design */
+  :root {
+    --mobile-max: 480px;
+    --tablet-max: 1024px;
+    --desktop-min: 1025px;
+  }
+  
+  /* Base mobile styles */
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  
+  .header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 1rem;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+  }
+  
+  .header h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2d3748;
+    text-align: center;
+  }
+  
+  .chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 1rem;
+    padding-bottom: 0;
+    min-height: 0; /* Ensures flex child can shrink */
+  }
+  
+  .product-preview {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 1rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+  
+  .product-preview.collapsed {
+    padding: 0.75rem 1rem;
+  }
+  
+  .product-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+  }
+  
+  .product-preview img {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 0.5rem;
+    object-fit: cover;
+  }
+  
+  .product-info h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2d3748;
+  }
+  
+  .product-info p {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+    color: #718096;
+  }
+  
+  .toggle-icon {
+    margin-left: auto;
+    transition: transform 0.3s ease;
+    color: #a0aec0;
+  }
+  
+  .toggle-icon.expanded {
+    transform: rotate(180deg);
+  }
+  
+  .product-details {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+  }
+  
+  .product-details p {
+    margin: 0.5rem 0;
+    font-size: 0.875rem;
+    color: #4a5568;
+  }
+  
+  .preview-link {
+    color: #3182ce;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  
+  .preview-link:hover {
+    text-decoration: underline;
+  }
+  
+  .messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: 0; /* Ensures flex child can shrink */
+    max-height: 100%; /* Prevents overflow of parent */
+  }
+  
+  .chat-bubble-user,
+  .chat-bubble-ai {
+    max-width: 85%;
+    padding: 0.875rem 1rem;
+    border-radius: 1.25rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .chat-bubble-user {
+    background: rgba(255, 255, 255, 0.9);
+    color: #2d3748;
+    align-self: flex-end;
+    border-bottom-right-radius: 0.375rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .chat-bubble-ai {
+    background: rgba(255, 255, 255, 0.95);
+    color: #2d3748;
+    align-self: flex-start;
+    border-bottom-left-radius: 0.375rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-left: 3px solid #667eea;
+  }
+  
+  .input-container {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 1rem;
+    box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+  }
+  
+  .input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #f7fafc;
+    border-radius: 1.5rem;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+  }
+  
+  .input-wrapper input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    color: #2d3748;
+    outline: none;
+  }
+  
+  .input-wrapper input::placeholder {
+    color: #a0aec0;
+  }
+  
+  .send-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    margin-left: auto;
+  }
+  
+  .send-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  }
+  
+  .send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  .thinking-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 1.25rem;
+    margin: 0.5rem 0;
+    align-self: flex-start;
+    max-width: 85%;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-left: 3px solid #667eea;
+  }
+  
+  .thinking-dots {
+    display: flex;
+    gap: 0.25rem;
+  }
+  
+  .thinking-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    background: #667eea;
+    border-radius: 50%;
+    animation: thinking 1.4s ease-in-out infinite both;
+  }
+  
+  .thinking-dot:nth-child(1) { animation-delay: -0.32s; }
+  .thinking-dot:nth-child(2) { animation-delay: -0.16s; }
+  
+  @keyframes thinking {
+    0%, 80%, 100% {
+      transform: scale(0);
+      opacity: 0.5;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .product-card-chat {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 1.25rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 1.25rem;
+    margin: 0.5rem 0;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    animation: slideUp 0.4s cubic-bezier(.4,0,.2,1);
+    transition: all 0.3s ease;
+  }
+  
+  .product-card-chat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+  }
+  
+  .product-card-chat img {
+    border-radius: 0.75rem;
+    width: 4rem;
+    height: 4rem;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
+  }
+  
+  .product-card-chat .product-title {
+    font-weight: 600;
+    font-size: 1.125rem;
+    margin-bottom: 0.25rem;
+    color: #2d3748;
+  }
+  
+  /* Enhanced Messages Container Styles */
+  .conversation-history {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .message-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .user-message-group {
+    align-items: flex-end;
+  }
+  
+  .system-message-group {
+    align-items: flex-start;
+  }
+  
+  .message-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+    padding: 0 0.5rem;
+  }
+  
+  .message-content {
+    flex: 1;
+  }
+  
+  .message-timestamp {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 0.5rem;
+    color: #718096;
+  }
+  
+  /* Product Information Card Styles */
+  .product-creation-response {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+  }
+  
+  .product-info-card {
+    background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    max-width: 90%;
+  }
+  
+  .product-info-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  }
+  
+  .product-card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .product-badge {
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .product-badge::before {
+    content: "🎉";
+    font-size: 1rem;
+  }
+  
+  .product-id-display {
+    font-size: 0.75rem;
+    font-family: 'Monaco', 'Menlo', monospace;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    backdrop-filter: blur(10px);
+  }
+  
+  .product-card-content {
+    padding: 1.25rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .product-image {
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 0.75rem;
+    object-fit: cover;
+    border: 2px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .product-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .product-details .product-title {
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: #2d3748;
+    margin: 0;
+  }
+  
+  .product-details .product-price {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #38a169;
+    margin: 0;
+  }
+  
+  .product-details .product-status {
+    font-size: 0.875rem;
+    color: #38a169;
+    font-weight: 500;
+    margin: 0;
+  }
+  
+  .product-links {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+  }
+  
+  .product-link {
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  
+  .product-link.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  .product-link.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  }
+  
+  .product-link.secondary {
+    background: #f7fafc;
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
+  }
+  
+  .product-link.secondary:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+  }
+  
+  .success-message {
+    border-left: 4px solid #38a169;
+    background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+  }
+  
+  .product-card-chat .product-price {
+    font-size: 0.875rem;
+    color: #718096;
+    margin-bottom: 0.25rem;
+  }
+  
+  .product-card-chat .product-status {
+    font-size: 0.75rem;
+    color: #a0aec0;
+    margin-bottom: 0.5rem;
+  }
+  
+  .product-card-chat .product-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .product-card-chat .btn-view {
+    background: #667eea;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  
+  .product-card-chat .btn-view:hover {
+    background: #5a67d8;
+    transform: scale(1.05);
+  }
+  
+  .product-card-chat .btn-edit {
+    background: #f7fafc;
+    color: #4a5568;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    border: 1px solid #e2e8f0;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .product-card-chat .btn-edit:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+  }
+  
+  /* Responsive breakpoints */
+  @media (max-width: 480px) {
+    .header {
+      padding: 0.75rem 1rem;
+    }
     
-<!-- Main Chat Area -->
-    <div class="flex-1 flex flex-col max-w-4xl mx-auto w-full p-6">
-      <!-- Chat Messages Area -->
-      <div
-        class="flex-1 bg-black/20 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-6 mb-6 overflow-y-auto"
-        id="chat-messages"
-      >
-        <!-- Messages Stream -->
-        <div id="messages" phx-update="stream" class="space-y-4">
-          <div
-            :for={{id, message} <- @streams.messages}
-            id={id}
-            class="flex items-start space-x-3"
-          >
-            <div class={[
-              "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-              if(message.role == :user,
-                do: "bg-gradient-to-r from-cyan-500 to-blue-500",
-                else: "bg-gradient-to-r from-purple-500 to-cyan-500"
-              )
-            ]}>
-              <span class="text-white text-xs font-bold">
-                {if message.role == :user, do: "U", else: "AI"}
-              </span>
+    .header h1 {
+      font-size: 1.125rem;
+    }
+    
+    .chat-bubble-user,
+    .chat-bubble-ai {
+      max-width: 90%;
+      font-size: 0.875rem;
+      padding: 0.75rem 0.875rem;
+    }
+    
+    .product-preview {
+      margin: 0.5rem;
+      padding: 0.875rem;
+    }
+    
+    .product-preview img {
+      width: 3rem;
+      height: 3rem;
+    }
+    
+    .conversation-history {
+      gap: 1rem;
+    }
+    
+    .product-info-card {
+      max-width: 95%;
+    }
+    
+    .product-card-content {
+      padding: 1rem;
+      flex-direction: column;
+      text-align: center;
+    }
+    
+    .product-image {
+      width: 3.5rem;
+      height: 3.5rem;
+      align-self: center;
+    }
+    
+    .product-links {
+      justify-content: center;
+    }
+    
+    .message-label {
+      font-size: 0.6875rem;
+    }
+  }
+  
+  @media (min-width: 481px) and (max-width: 1024px) {
+    .chat-bubble-user,
+    .chat-bubble-ai {
+      max-width: 80%;
+    }
+    
+    .header {
+      padding: 1rem 1.5rem;
+    }
+    
+    .product-preview {
+      margin: 0.75rem;
+      padding: 1.25rem;
+    }
+    
+    .product-info-card {
+      max-width: 85%;
+    }
+    
+    .conversation-history {
+      gap: 1.25rem;
+    }
+  }
+  
+  @media (min-width: 1025px) {
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 2rem 0;
+      background: #f7fafc;
+    }
+    
+    .main-container {
+      width: 100%;
+      max-width: 480px;
+      min-height: calc(100vh - 4rem);
+      border-radius: 1rem;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+    
+    .chat-bubble-user,
+    .chat-bubble-ai {
+      max-width: 70%;
+    }
+    
+    .product-info-card {
+      max-width: 75%;
+    }
+    
+    .conversation-history {
+      gap: 2rem;
+    }
+    
+    .product-card-content {
+      padding: 1.5rem;
+    }
+  }
+</style>
+
+<div class="main-container">
+  <!-- Header -->
+  <div class="header">
+    <h1>Shoppollama</h1>
+  </div>
+    
+  <!-- Chat Area -->
+  <div class="chat-area">
+    <!-- Messages Container -->
+    <div class="messages-container" id="messages-container" phx-hook="ChatScroll" tabindex="0">
+      <!-- Product Preview Section -->
+      <%= if @current_product do %>
+        <div class="product-preview" id="product-preview">
+          <div class="product-header" onclick="toggleProductPreview()">
+            <img src={@current_product.image_url || "/images/placeholder.jpg"} alt={@current_product.name} />
+            <div class="product-info">
+              <h3>{@current_product.name}</h3>
+              <p>{@current_product.price}</p>
             </div>
-            <div class={[
-              "rounded-2xl p-4 max-w-3xl",
-              if(message.role == :user,
-                do: "bg-cyan-900/30 border border-cyan-500/20 rounded-tr-none",
-                else: "bg-purple-900/30 border border-purple-500/20 rounded-tl-none"
-              )
-            ]}>
-              <p class="text-gray-200 leading-relaxed whitespace-pre-wrap">{message.content}</p>
-              <div class="flex items-center justify-between mt-2 text-xs text-gray-400">
-                <span>{Calendar.strftime(message.timestamp, "%I:%M %p")}</span>
-                <%= if message.role == :assistant && Map.has_key?(message, :model) do %>
-                  <span class="bg-purple-600/20 px-2 py-1 rounded-full">{message.model}</span>
-                <% end %>
+            <div class="toggle-icon" id="toggle-icon">▼</div>
+          </div>
+          <div class="product-details" id="product-details">
+            <p><strong>Description:</strong> {@current_product.description}</p>
+            <p><strong>Category:</strong> {@current_product.category}</p>
+            <p><strong>Stock:</strong> {@current_product.stock} available</p>
+            <p><a href={@current_product.url} class="preview-link" data-url={@current_product.url}>View Product Page</a></p>
+          </div>
+        </div>
+      <% end %>
+      
+      <!-- Conversation History -->
+      <div class="conversation-history" id="messages-stream" phx-update="stream">
+        <%= for {dom_id, message} <- @streams.messages do %>
+          <!-- DEBUG: Message ID: <%= dom_id %>, Role: <%= inspect(message.role) %> -->
+          <%= if message.role == :user do %>
+            <!-- User Message -->
+            <div id={dom_id} class="message-group user-message-group">
+              <div class="message-label">You</div>
+              <div id={"bubble-#{message.id}"} class="chat-bubble-user" phx-hook="MessagePreserver">
+                <div class="message-content">
+                  <div class="whitespace-pre-wrap"><%= linkify_text(message.content) %></div>
+                </div>
+                <div class="message-timestamp">
+                  {Calendar.strftime(message.timestamp, "%I:%M %p")}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-        
-<!-- Thinking Indicator -->
-        <%= if @thinking do %>
-          <div class="flex items-start space-x-3 mt-4">
-            <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <span class="text-white text-xs font-bold">AI</span>
-            </div>
-            <div class="bg-purple-900/30 border border-purple-500/20 rounded-2xl rounded-tl-none p-4">
-              <div class="flex items-center space-x-2 text-gray-300">
-                <div class="flex space-x-1">
-                  <div class="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                  <div
-                    class="w-2 h-2 bg-purple-400 rounded-full animate-pulse"
-                    style="animation-delay: 0.2s"
-                  >
-                  </div>
-                  <div
-                    class="w-2 h-2 bg-purple-400 rounded-full animate-pulse"
-                    style="animation-delay: 0.4s"
-                  >
+          <% else %>
+            <!-- System Response -->
+            <div id={dom_id} class="message-group system-message-group">
+              <div class="message-label">Assistant</div>
+              <%= if String.contains?(message.content, "Product created successfully!") or String.contains?(message.content, "Product Page Created Successfully!") do %>
+                <!-- Product Creation Response with Embedded Card -->
+                <div class="product-creation-response">
+                  <%= if @current_product do %>
+                    <!-- Product Information Card -->
+                    <div class="product-info-card">
+                      <div class="product-card-header">
+                        <div class="product-badge">Product Created</div>
+                        <div class="product-id-display">ID: {@current_product.id || "N/A"}</div>
+                      </div>
+                      <div class="product-card-content">
+                        <img src={@current_product.image_url || "/images/placeholder.jpg"} alt="Product" class="product-image" />
+                        <div class="product-details">
+                          <div class="product-title">{@current_product.name}</div>
+                          <div class="product-price">{@current_product.price}</div>
+                          <div class="product-status">✅ Ready for sale</div>
+                          <div class="product-links">
+                            <a href={@current_product.link} target="_blank" class="product-link primary">View Product Page</a>
+                            <a href={@current_product.stripe_link} target="_blank" class="product-link secondary">Stripe Dashboard</a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                  <!-- System Success Message -->
+                  <div id={"success-bubble-#{message.id}"} class="chat-bubble-ai success-message" phx-hook="MessagePreserver">
+                    <div class="message-content">
+                      <div class="whitespace-pre-wrap"><%= linkify_text(message.content) %></div>
+                    </div>
+                    <div class="message-timestamp">
+                      {Calendar.strftime(message.timestamp, "%I:%M %p")}
+                    </div>
                   </div>
                 </div>
-                <span class="text-sm">ShoppOllama is thinking...</span>
-              </div>
+              <% else %>
+                <!-- Regular System Message -->
+                <div id={"ai-bubble-#{message.id}"} class="chat-bubble-ai" phx-hook="MessagePreserver">
+                  <div class="message-content">
+                    <div class="whitespace-pre-wrap"><%= linkify_text(message.content) %></div>
+                  </div>
+                  <div class="message-timestamp">
+                    {Calendar.strftime(message.timestamp, "%I:%M %p")}
+                  </div>
+                </div>
+              <% end %>
             </div>
+          <% end %>
+        <% end %>
+      </div>
+      
+      <!-- Thinking Indicator -->
+      <%= if @thinking do %>
+        <div class="thinking-indicator">
+          <div class="thinking-dots">
+            <div class="thinking-dot"></div>
+            <div class="thinking-dot"></div>
+            <div class="thinking-dot"></div>
+          </div>
+          <span style="font-size: 0.875rem; color: #4a5568;">AI is thinking...</span>
+        </div>
+      <% end %>
+    </div>
+  </div>
+      
+  <!-- Chat Input -->
+  <div class="input-container">
+    <.form for={@form} phx-submit="send_message" phx-change="validate" id="chat-form">
+      <!-- File Upload Section -->
+      <div class="upload-section" style="margin-bottom: 0.75rem;">
+        <.live_file_input upload={@uploads.image} style="display: none;" id="file-input" />
+        <button type="button" phx-click="trigger_file_input" class="upload-btn" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; color: #4a5568; transition: all 0.2s ease;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+          Add Photo
+        </button>
+        
+        <!-- Display uploaded files -->
+        <%= for entry <- @uploads.image.entries do %>
+          <div class="upload-entry" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; padding: 0.5rem; background: #f0fff4; border: 1px solid #c6f6d5; border-radius: 0.5rem;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span style="font-size: 0.875rem; color: #2d3748;"><%= entry.client_name %></span>
+            <button type="button" phx-click="cancel_upload" phx-value-ref={entry.ref} style="margin-left: auto; background: none; border: none; color: #e53e3e; cursor: pointer;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
           </div>
         <% end %>
       </div>
       
-<!-- Chat Input -->
-      <div class="bg-black/30 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-4">
-        <.form for={%{}} id="chat-form" phx-submit="send_message" class="contents">
-          <div class="flex items-center space-x-4">
-            <div class="flex-1 relative">
-              <input
-                type="text"
-                name="message"
-                value={@current_message}
-                phx-change="update_message"
-                placeholder="Ask ShoppOllama anything about your store..."
-                class="w-full bg-gray-800/50 border border-gray-600/50 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
-                autocomplete="off"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={@thinking || @current_message == ""}
-              class="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded-xl transition-colors"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                >
-                </path>
-              </svg>
-            </button>
-          </div>
-        </.form>
-        
-<!-- Model Selector -->
-        <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-600/30">
-          <div class="flex items-center space-x-3">
-            <span class="text-gray-400 text-xs">Model:</span>
-            <select
-              phx-change="select_model"
-              name="model"
-              class="bg-gray-800/50 border border-gray-600/50 rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:border-purple-500/50"
-            >
-              <option value="gpt-oss:20b" selected={@selected_model == "gpt-oss:20b"}>
-                gpt-oss:20b (Fast)
-              </option>
-              <option value="gpt-oss:120b" selected={@selected_model == "gpt-oss:120b"}>
-                gpt-oss:120b (Advanced)
-              </option>
-            </select>
-            <span class="text-gray-400 text-xs">Reasoning:</span>
-            <select
-              phx-change="select_reasoning"
-              name="reasoning"
-              class="bg-gray-800/50 border border-gray-600/50 rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:border-purple-500/50"
-            >
-              <option value="low" selected={@reasoning_effort == "low"}>Low</option>
-              <option value="medium" selected={@reasoning_effort == "medium"}>Medium</option>
-              <option value="high" selected={@reasoning_effort == "high"}>High</option>
-            </select>
-          </div>
-          <div class="flex items-center space-x-2 text-xs text-gray-400">
-            <div class={[
-              "w-2 h-2 rounded-full",
-              if(@ollama_connected, do: "bg-green-500 animate-pulse", else: "bg-red-500")
-            ]}>
-            </div>
-            <span>
-              {if @ollama_connected, do: "Ollama Connected", else: "Ollama Disconnected"}
-            </span>
-          </div>
-        </div>
+      <div class="input-wrapper">
+        <.input
+          field={@form[:content]}
+          type="text"
+          placeholder="Ask me anything about products..."
+          class="input-wrapper input"
+          autocomplete="off"
+          phx-hook="AutoFocus"
+        />
+        <button
+          type="submit"
+          disabled={@thinking || !@ollama_connected}
+          class="send-btn"
+        >
+          <%= if @thinking do %>
+            <div style="width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid white; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+          <% else %>
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+            </svg>
+          <% end %>
+        </button>
       </div>
-    </div>
+    </.form>
   </div>
-</Layouts.app>
+        
+</div>
+
+<script>
+  // Mobile interface JavaScript functionality
+  function toggleProductPreview() {
+    const preview = document.getElementById('product-preview');
+    const details = document.getElementById('product-details');
+    const icon = document.getElementById('toggle-icon');
+    
+    if (preview && details && icon) {
+      const isCollapsed = preview.classList.contains('collapsed');
+      
+      if (isCollapsed) {
+        preview.classList.remove('collapsed');
+        details.style.display = 'block';
+        icon.classList.add('expanded');
+      } else {
+        preview.classList.add('collapsed');
+        details.style.display = 'none';
+        icon.classList.remove('expanded');
+      }
+    }
+  }
+  
+  // Add spin animation for loading spinner
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Auto-scroll is now handled by the ChatScroll hook
+  
+  // Handle responsive chat bubble sizing
+  function adjustChatBubbles() {
+    const bubbles = document.querySelectorAll('.chat-bubble-user, .chat-bubble-ai');
+    const viewportWidth = window.innerWidth;
+    
+    bubbles.forEach(bubble => {
+      if (viewportWidth <= 480) {
+        bubble.style.maxWidth = '90%';
+      } else if (viewportWidth <= 1024) {
+        bubble.style.maxWidth = '80%';
+      } else {
+        bubble.style.maxWidth = '70%';
+      }
+    });
+  }
+  
+  // Initialize and handle window resize
+  window.addEventListener('load', adjustChatBubbles);
+  window.addEventListener('resize', adjustChatBubbles);
+</script>
