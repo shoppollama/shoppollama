@@ -35,7 +35,7 @@ config :phoenix_live_view,
 
 # Stripe configuration for tests
 
-# Set OpenAI API key for testing
-System.put_env("OPENAI_API_KEY", "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")
+# Set OpenAI API key for testing (use environment variable in production)
+# System.put_env("OPENAI_API_KEY", "your-api-key-here")
 
 # Langchain configuration removed - now using OllamaClient
