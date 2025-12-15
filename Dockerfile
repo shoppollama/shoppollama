@@ -25,7 +25,7 @@ RUN mix deps.compile
 COPY assets/package.json assets/package-lock.json ./assets/
 RUN npm --prefix ./assets ci
 COPY assets/ assets/
-RUN npm --prefix ./assets run build
+RUN npm --prefix ./assets run deploy
 RUN mix assets.deploy
 
 # Copy source code
