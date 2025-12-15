@@ -1,8 +1,10 @@
 # Build stage
-FROM elixir:1.15-alpine AS builder
+FROM elixir:1.15-slim AS builder
 
 # Install build dependencies
-RUN apk add --no-cache build-base npm git python3
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential npm git python3 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Prepare build directory
 WORKDIR /app
@@ -40,16 +42,22 @@ COPY config/runtime.exs config/
 RUN mix release
 
 # Release stage
-FROM alpine:3.18
+FROM debian:bookworm-slim
 
 # Install runtime dependencies
-RUN apk add --no-cache openssl ncurses-libs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 libncurses6 locales \
+    && rm -rf /var/lib/apt/lists/* \
+    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen
+
+ENV LANG=en_US.UTF-8
 
 WORKDIR /app
 
 # Create non-root user
-RUN addgroup -g 1000 -S app && \
-    adduser -S app -G app
+RUN groupadd -g 1000 app && \
+    useradd -u 1000 -g app app
 
 # Copy built application from builder stage
 COPY --from=builder --chown=app:app /app/_build/prod/rel/shoppollama ./
