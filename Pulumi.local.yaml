@@ -1,0 +1,4 @@
+config:
+  aws:region: us-east-1
+  shoppollama:secretKeyBase:
+    secure: AAABAJRFID5gHaFy1CUojJ+X2lS02Yu4jdwPtVkzoArZZNSnrtgZb1o+emBy4Q3YOICjGNPwdKwPIkm+/M8gNqaNDT6JkRTxEsJqGGKtjHQfMk+dxAfi7bEwLtJfLEja
