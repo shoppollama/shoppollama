@@ -2,7 +2,7 @@
 
 > **Open Source Agentic Commerce Platform built on Ollama and Stripe — Run DeepSeek, Llama3 & GPT-oss out of the box**
 
-Shoppollama is an AI-powered commerce platform built with Phoenix LiveView and Elixir. It uses local AI models via Ollama (i.e. Llama3 and gpt-oss). It ships with its MCP server for payment testing powered by Stripe and Tidewave.
+Shoppollama is an AI-powered commerce platform built with Phoenix LiveView and Elixir. It uses local AI models via Ollama (i.e. Llama3 and gpt-oss). It ships with its own MCP server for payment testing (powered by Stripe and Tidewave).
 
 ## Features
 
