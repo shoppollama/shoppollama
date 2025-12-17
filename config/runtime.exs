@@ -7,6 +7,30 @@ import Config
 # any compile-time configuration in here, as it won't be applied.
 # The block below contains prod specific runtime configuration.
 
+# Load .env file for all environments
+if config_env() in [:dev, :test] do
+  env_file = Path.expand("../.env", __DIR__)
+  IO.inspect(env_file, label: "ENV_FILE_PATH")
+  IO.inspect(File.exists?(env_file), label: "FILE_EXISTS")
+  if File.exists?(env_file) do
+    env_vars = Dotenvy.source!(env_file)
+    for {key, value} <- env_vars do
+      System.put_env(key, value)
+    end
+    IO.inspect(System.get_env("STRIPE_SECRET_KEY"), label: "STRIPE_KEY_AFTER_LOAD")
+  end
+end
+
+# Configure Stripe for all environments (must be after env vars are loaded)
+config :stripity_stripe,
+  api_key: System.get_env("STRIPE_SECRET_KEY"),
+  secret_key: System.get_env("STRIPE_SECRET_KEY")
+
+# Debug: Log the Stripe key to verify it's loaded
+if config_env() in [:dev, :test] do
+  IO.inspect(Application.get_env(:stripity_stripe, :api_key), label: "STRIPE_KEY_FROM_CONFIG")
+end
+
 # ## Using releases
 #
 # If you use `mix release`, you need to explicitly enable the server

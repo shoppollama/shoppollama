@@ -33,8 +33,6 @@ config :phoenix, :plug_init_mode, :runtime
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
 
-# Stripe configuration for tests
-
 # Set OpenAI API key for testing (use environment variable in production)
 # System.put_env("OPENAI_API_KEY", "your-api-key-here")
 

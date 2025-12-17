@@ -4,8 +4,13 @@
 # This configuration file is loaded before any dependency and
 # is restricted to this project.
 
-# General application configuration
+# Load .env file
 import Config
+if Code.ensure_loaded?(Dotenvy) do
+  Dotenvy.load!(".env")
+end
+
+# General application configuration
 
 config :shoppollama,
   ecto_repos: [Shoppollama.Repo],

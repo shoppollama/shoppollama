@@ -69,7 +69,8 @@ defmodule Shoppollama.MixProject do
       {:ex_aws_s3, "~> 2.0"},
       {:hackney, "~> 1.9"},
       {:sweet_xml, "~> 0.6"},
-      {:tidewave, "~> 0.4", only: :dev}
+      {:tidewave, "~> 0.4", only: :dev},
+      {:dotenvy, "~> 1.0"}
     ]
   end
 

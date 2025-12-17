@@ -42,8 +42,3 @@ config :logger, level: :debug
 
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
-
-# Stripe config - set STRIPE_SECRET_KEY in your .env file
-config :stripity_stripe,
-  api_key: System.get_env("STRIPE_SECRET_KEY"),
-  secret_key: System.get_env("STRIPE_SECRET_KEY")
