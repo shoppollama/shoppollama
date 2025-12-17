@@ -6,7 +6,7 @@
 
 # Load .env file
 import Config
-if Code.ensure_loaded?(Dotenvy) do
+if Code.ensure_loaded?(Dotenvy) and File.exists?(".env") do
   Dotenvy.load!(".env")
 end
 
