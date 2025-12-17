@@ -8,7 +8,7 @@ import Config
 # The block below contains prod specific runtime configuration.
 
 # Load .env file for all environments
-if config_env() in [:dev, :test] do
+if config_env() in [:dev, :test, :prod] do
   env_file = Path.expand("../.env", __DIR__)
   IO.inspect(env_file, label: "ENV_FILE_PATH")
   IO.inspect(File.exists?(env_file), label: "FILE_EXISTS")
@@ -27,7 +27,7 @@ config :stripity_stripe,
   secret_key: System.get_env("STRIPE_SECRET_KEY")
 
 # Debug: Log the Stripe key to verify it's loaded
-if config_env() in [:dev, :test] do
+if config_env() in [:dev, :test, :prod] do
   IO.inspect(Application.get_env(:stripity_stripe, :api_key), label: "STRIPE_KEY_FROM_CONFIG")
 end
 
