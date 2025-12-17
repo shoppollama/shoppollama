@@ -163,7 +163,7 @@
   
   .input-wrapper {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 0.75rem;
     background: #f7fafc;
     border-radius: 1.5rem;
@@ -171,7 +171,7 @@
     border: 1px solid #e2e8f0;
   }
   
-  .input-wrapper input {
+  .input-wrapper textarea {
     flex: 1;
     border: none;
     background: transparent;
@@ -179,9 +179,15 @@
     font-size: 1rem;
     color: #2d3748;
     outline: none;
+    resize: none;
+    min-height: 1.5rem;
+    max-height: 150px;
+    overflow-y: auto;
+    line-height: 1.5;
+    font-family: inherit;
   }
   
-  .input-wrapper input::placeholder {
+  .input-wrapper textarea::placeholder {
     color: #a0aec0;
   }
   
@@ -620,7 +626,7 @@
       justify-content: center;
       align-items: flex-start;
       min-height: 100vh;
-      padding: 2rem 0;
+      padding: 0.5rem 0;
       background: #f7fafc;
     }
     
@@ -662,26 +668,6 @@
   <div class="chat-area">
     <!-- Messages Container -->
     <div class="messages-container" id="messages-container" phx-hook="ChatScroll" tabindex="0">
-      <!-- Product Preview Section -->
-      <%= if @current_product do %>
-        <div class="product-preview" id="product-preview">
-          <div class="product-header" onclick="toggleProductPreview()">
-            <img src={@current_product.image_url || "/images/placeholder.jpg"} alt={@current_product.name} />
-            <div class="product-info">
-              <h3>{@current_product.name}</h3>
-              <p>{@current_product.price}</p>
-            </div>
-            <div class="toggle-icon" id="toggle-icon">▼</div>
-          </div>
-          <div class="product-details" id="product-details">
-            <p><strong>Description:</strong> {@current_product.description}</p>
-            <p><strong>Category:</strong> {@current_product.category}</p>
-            <p><strong>Stock:</strong> {@current_product.stock} available</p>
-            <p><a href={@current_product.url} class="preview-link" data-url={@current_product.url}>View Product Page</a></p>
-          </div>
-        </div>
-      <% end %>
-      
       <!-- Conversation History -->
       <div class="conversation-history" id="messages-stream" phx-update="stream">
         <%= for {dom_id, message} <- @streams.messages do %>
@@ -699,42 +685,38 @@
                 </div>
               </div>
             </div>
+            
+            <!-- Product Preview Section - Show after user message if this message created the product -->
+            <%= if @current_product && @current_product.created_by_message_id == message.id do %>
+              <div class="product-preview" id="product-preview" style="margin-top: 0.5rem;">
+                <div class="product-header" onclick="toggleProductPreview()">
+                  <img src={@current_product.image_url || "/images/placeholder.jpg"} alt={@current_product.name} />
+                  <div class="product-info">
+                    <h3>{@current_product.name}</h3>
+                    <p>{@current_product.price}</p>
+                  </div>
+                  <div class="toggle-icon" id="toggle-icon">▼</div>
+                </div>
+                <div class="product-details" id="product-details">
+                  <p><strong>Description:</strong> {@current_product.description}</p>
+                  <p><strong>Category:</strong> {@current_product.category}</p>
+                  <p><strong>Stock:</strong> {@current_product.stock} available</p>
+                  <p><a href={@current_product.url} class="preview-link" data-url={@current_product.url}>View Product Page</a></p>
+                </div>
+              </div>
+            <% end %>
           <% else %>
             <!-- System Response -->
             <div id={dom_id} class="message-group system-message-group">
               <div class="message-label">Assistant</div>
               <%= if String.contains?(message.content, "Product created successfully!") or String.contains?(message.content, "Product Page Created Successfully!") do %>
-                <!-- Product Creation Response with Embedded Card -->
-                <div class="product-creation-response">
-                  <%= if @current_product do %>
-                    <!-- Product Information Card -->
-                    <div class="product-info-card">
-                      <div class="product-card-header">
-                        <div class="product-badge">Product Created</div>
-                        <div class="product-id-display">ID: {@current_product.id || "N/A"}</div>
-                      </div>
-                      <div class="product-card-content">
-                        <img src={@current_product.image_url || "/images/placeholder.jpg"} alt="Product" class="product-image" />
-                        <div class="product-details">
-                          <div class="product-title">{@current_product.name}</div>
-                          <div class="product-price">{@current_product.price}</div>
-                          <div class="product-status">✅ Ready for sale</div>
-                          <div class="product-links">
-                            <a href={@current_product.link} target="_blank" class="product-link primary">View Product Page</a>
-                            <a href={@current_product.stripe_link} target="_blank" class="product-link secondary">Stripe Dashboard</a>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  <% end %>
-                  <!-- System Success Message -->
-                  <div id={"success-bubble-#{message.id}"} class="chat-bubble-ai success-message" phx-hook="MessagePreserver">
-                    <div class="message-content">
-                      <div class="whitespace-pre-wrap"><%= linkify_text(message.content) %></div>
-                    </div>
-                    <div class="message-timestamp">
-                      {Calendar.strftime(message.timestamp, "%I:%M %p")}
-                    </div>
+                <!-- Product Creation Response - Just the success message -->
+                <div id={"success-bubble-#{message.id}"} class="chat-bubble-ai success-message" phx-hook="MessagePreserver">
+                  <div class="message-content">
+                    <div class="whitespace-pre-wrap"><%= linkify_text(message.content) %></div>
+                  </div>
+                  <div class="message-timestamp">
+                    {Calendar.strftime(message.timestamp, "%I:%M %p")}
                   </div>
                 </div>
               <% else %>
@@ -797,14 +779,14 @@
       </div>
       
       <div class="input-wrapper">
-        <.input
-          field={@form[:content]}
-          type="text"
+        <textarea
+          name={@form[:content].name}
+          id={@form[:content].id}
           placeholder="Ask me anything about products..."
-          class="input-wrapper input"
           autocomplete="off"
-          phx-hook="AutoFocus"
-        />
+          phx-hook="AutoExpandTextarea"
+          rows="1"
+        ></textarea>
         <button
           type="submit"
           disabled={@thinking || !@ollama_connected}

@@ -135,7 +135,7 @@ defmodule ShoppollamaWeb.ChatLive do
       # Use enhanced text analysis for better message routing
       case TextAnalyzer.analyze_text(content, get_conversation_context(socket)) do
         {:ok, analysis} ->
-          route_message_by_analysis(analysis, content, image_url)
+          route_message_by_analysis(analysis, content, image_url, stored_message.id)
         {:error, reason} ->
           Logger.error("Failed to route message: #{inspect(reason)}")
       end
@@ -173,7 +173,7 @@ defmodule ShoppollamaWeb.ChatLive do
   end
 
   @impl true
-  def handle_info({:create_product, message, image_url}, socket) do
+  def handle_info({:create_product, message, image_url, user_message_id}, socket) do
     # Parse the product details from the message
     case ProductParser.parse_product_message(message) do
       {:error, reason} ->
@@ -194,6 +194,7 @@ defmodule ShoppollamaWeb.ChatLive do
          |> stream_insert(:messages, new_message)}
          
       product_data ->
+        Logger.info("Attempting to create product: #{inspect(product_data)}")
         case StripeProductClient.create_product(product_data) do
       {:ok, product_result} ->
         product = product_result.stripe_product
@@ -220,6 +221,9 @@ defmodule ShoppollamaWeb.ChatLive do
            _ -> "/images/placeholder.jpg"
          end
 
+        # Find the original user message to re-insert it
+        user_message = Enum.find(socket.assigns.messages, fn m -> m.id == user_message_id end)
+
         {:noreply,
          socket
          |> assign(:messages, updated_messages)
@@ -235,14 +239,24 @@ defmodule ShoppollamaWeb.ChatLive do
            description: product.description || "Product created by ShoppOllama AI assistant",
            category: product.metadata["product_type"] || "General",
            stock: "10",
-           url: "http://localhost:4000/p/#{product.id}"
-         })}
+           url: "http://localhost:4000/p/#{product.id}",
+           created_by_message_id: user_message_id
+         })
+         |> then(fn s ->
+           if user_message do
+             # Re-insert the user message to trigger re-render with product preview
+             stream_insert(s, :messages, user_message)
+           else
+             s
+           end
+         end)}
 
       {:error, error} ->
+        Logger.error("Product creation failed: #{inspect(error)}")
         ai_message = %{
           id: System.unique_integer([:positive]),
           role: :assistant,
-          content: "❌ Sorry, I couldn't create the product: #{error}",
+          content: "❌ Sorry, I couldn't create the product. Please check your configuration and try again.",
           timestamp: DateTime.utc_now(),
           model: socket.assigns.selected_model
         }
@@ -260,10 +274,16 @@ defmodule ShoppollamaWeb.ChatLive do
     end
   end
 
-  # Handle legacy create_product calls without image_url
+  # Handle legacy create_product calls without image_url or user_message_id
   @impl true
   def handle_info({:create_product, message}, socket) do
-    handle_info({:create_product, message, nil}, socket)
+    handle_info({:create_product, message, nil, nil}, socket)
+  end
+
+  # Handle legacy create_product calls without user_message_id
+  @impl true
+  def handle_info({:create_product, message, image_url}, socket) do
+    handle_info({:create_product, message, image_url, nil}, socket)
   end
 
   @impl true
@@ -296,10 +316,11 @@ defmodule ShoppollamaWeb.ChatLive do
          |> assign(:thinking, false)}
 
       {:error, error} ->
+        Logger.error("Product page creation failed: #{inspect(error)}")
         ai_message = %{
           id: System.unique_integer([:positive]),
           role: :assistant,
-          content: "❌ Sorry, I couldn't create the product page: #{error}",
+          content: "❌ Oops, I couldn't create the product page. Please try again.",
           timestamp: DateTime.utc_now(),
           model: socket.assigns.selected_model
         }
@@ -434,7 +455,6 @@ defmodule ShoppollamaWeb.ChatLive do
     3. Include the exact text "Price: $#{price_dollars}"
     4. Include the exact text "Stripe Product Link: https://dashboard.stripe.com/products/#{product.id}"
     5. Include the exact text "Product Page Link: http://localhost:4000/p/#{product.id}"
-    6. A encouraging closing message mentioning "next month"
 
     Keep it concise but informative.
     """
@@ -450,9 +470,9 @@ defmodule ShoppollamaWeb.ChatLive do
 
 
 
-  defp route_message_by_analysis(analysis, message, image_url \\ nil) do
+  defp route_message_by_analysis(analysis, message, image_url \\ nil, user_message_id \\ nil) do
     case analysis.intent do
-      :create_product -> send(self(), {:create_product, message, image_url})
+      :create_product -> send(self(), {:create_product, message, image_url, user_message_id})
       :send_sms -> send(self(), {:send_sms, message})
       :query_store -> send(self(), {:handle_store_query, message})
       :list_products -> send(self(), {:list_products, message})
