@@ -102,7 +102,7 @@ defmodule ShoppollamaWeb.ChatLive do
           "https://#{bucket}.s3.amazonaws.com/#{key}"
         [] -> 
           # In test environment, provide a fallback S3 URL when image is expected
-          if Mix.env() == :test and String.contains?(String.downcase(content), ["cover", "image", "photo", "album", "tape", "mixtape"]) do
+          if Application.get_env(:shoppollama, :env) == :test and String.contains?(String.downcase(content), ["cover", "image", "photo", "album", "tape", "mixtape"]) do
             "https://shoppollama-images-dev.s3.amazonaws.com/test/cover.png"
           else
             nil
