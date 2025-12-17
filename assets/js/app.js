@@ -22,7 +22,7 @@ import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
-import { ChatScroll, AutoFocus, MessagePreserver } from "./hooks"
+import { ChatScroll, AutoFocus, MessagePreserver, AutoExpandTextarea } from "./hooks"
 import topbar from "../vendor/topbar"
 // for uploading to S3
 import Uploaders from "./uploaders"
@@ -31,7 +31,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: { ChatScroll, AutoFocus, MessagePreserver },
+  hooks: { ChatScroll, AutoFocus, MessagePreserver, AutoExpandTextarea },
   uploaders: Uploaders
 })
 

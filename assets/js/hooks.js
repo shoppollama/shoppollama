@@ -52,4 +52,27 @@ const MessagePreserver = {
   }
 }
 
-export { ChatScroll, AutoFocus, MessagePreserver }
+// AutoExpandTextarea hook - automatically expands textarea as user types
+const AutoExpandTextarea = {
+  mounted() {
+    this.el.addEventListener('input', this.handleInput.bind(this))
+    this.adjustHeight()
+  },
+  
+  updated() {
+    this.adjustHeight()
+  },
+  
+  handleInput() {
+    this.adjustHeight()
+  },
+  
+  adjustHeight() {
+    // Reset height to auto to get the correct scrollHeight
+    this.el.style.height = 'auto'
+    // Set height to scrollHeight to expand to content
+    this.el.style.height = this.el.scrollHeight + 'px'
+  }
+}
+
+export { ChatScroll, AutoFocus, MessagePreserver, AutoExpandTextarea }
