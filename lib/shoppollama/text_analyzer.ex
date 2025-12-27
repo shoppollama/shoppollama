@@ -226,7 +226,7 @@ defmodule Shoppollama.TextAnalyzer do
   end
 
   defp call_llm(prompt) do
-    case OllamaClient.completion(prompt, model: "llama3.2:3b", temperature: 0.7) do
+    case OllamaClient.completion(prompt, model: "llama3.2:3b", temperature: 0.7, timeout: 30_000) do
       {:ok, content} -> {:ok, content}
       {:error, reason} -> 
         Logger.error("TextAnalyzer failed: #{inspect(reason)}")

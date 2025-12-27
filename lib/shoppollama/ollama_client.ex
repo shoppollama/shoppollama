@@ -7,8 +7,23 @@ defmodule Shoppollama.OllamaClient do
   require Logger
 
   @default_model "llama3.2:3b"
-  @default_endpoint "http://localhost:11434/api/generate"
+  @default_base_url "http://localhost:11434"
+  @default_endpoint "#{@default_base_url}/api/generate"
   @default_timeout 30_000
+
+  @doc """
+  Gets the Ollama base URL from environment variables or uses default.
+  """
+  def get_base_url do
+    System.get_env("OLLAMA_BASE_URL", @default_base_url)
+  end
+
+  def get_timeout do
+    case System.get_env("OLLAMA_TIMEOUT") do
+      nil -> @default_timeout
+      timeout_str -> String.to_integer(timeout_str)
+    end
+  end
 
   @doc """
   Makes a completion request to the Ollama server.
@@ -32,40 +47,51 @@ defmodule Shoppollama.OllamaClient do
     model = Keyword.get(opts, :model, @default_model)
     temperature = Keyword.get(opts, :temperature, 0.7)
     stream = Keyword.get(opts, :stream, false)
-    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    timeout = Keyword.get(opts, :timeout, get_timeout())
+    base_url = get_base_url()
+    endpoint = "#{base_url}/api/generate"
 
-    request_body = %{
-      model: model,
-      prompt: prompt,
-      temperature: temperature,
-      stream: stream
-    }
+    # Check if Ollama is available first
+    case health_check() do
+      {:ok, _} ->
+        # Ollama is available, proceed with request
+        request_body = %{
+          model: model,
+          prompt: prompt,
+          temperature: temperature,
+          stream: stream
+        }
 
-    headers = [
-      {"Content-Type", "application/json"},
-      {"Accept", "application/json"}
-    ]
+        headers = [
+          {"Content-Type", "application/json"},
+          {"Accept", "application/json"}
+        ]
 
+        case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout) do
+          {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+            case Jason.decode(body) do
+              {:ok, %{"response" => response}} -> {:ok, String.trim(response)}
+              {:ok, response} -> {:error, "Unexpected response format: #{inspect(response)}"}
+              {:error, decode_error} -> {:error, "JSON decode error: #{inspect(decode_error)}"}
+            end
 
-    case HTTPoison.post(@default_endpoint, Jason.encode!(request_body), headers, timeout: timeout) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
-        case Jason.decode(body) do
-          {:ok, %{"response" => response}} -> {:ok, String.trim(response)}
-          {:ok, response} -> {:error, "Unexpected response format: #{inspect(response)}"}
-          {:error, decode_error} -> {:error, "JSON decode error: #{inspect(decode_error)}"}
+          {:ok, %HTTPoison.Response{status_code: status_code, body: body}} ->
+            Logger.error("Ollama request failed with status #{status_code}: #{body}")
+            {:error, "Ollama server error: #{status_code}"}
+
+          {:error, %HTTPoison.Error{reason: reason}} ->
+            Logger.error("Ollama connection error: #{inspect(reason)}")
+            {:error, "Failed to connect to Ollama server: #{inspect(reason)}"}
+
+          {:error, error} ->
+            Logger.error("Unexpected Ollama error: #{inspect(error)}")
+            {:error, "Unexpected error: #{inspect(error)}"}
         end
-
-      {:ok, %HTTPoison.Response{status_code: status_code, body: body}} ->
-        Logger.error("Ollama request failed with status #{status_code}: #{body}")
-        {:error, "Ollama server error: #{status_code}"}
-
-      {:error, %HTTPoison.Error{reason: reason}} ->
-        Logger.error("Ollama connection error: #{inspect(reason)}")
-        {:error, "Failed to connect to Ollama server: #{inspect(reason)}"}
-
-      {:error, error} ->
-        Logger.error("Unexpected Ollama error: #{inspect(error)}")
-        {:error, "Unexpected error: #{inspect(error)}"}
+      
+      {:error, _} ->
+        # Ollama is not available, return a mock response
+        Logger.warn("Ollama is not available, returning mock response")
+        {:ok, "Ollama is currently unavailable. This is a mock response. Please install Ollama to enable AI features."}
     end
   end
 
@@ -90,6 +116,8 @@ defmodule Shoppollama.OllamaClient do
     temperature = Keyword.get(opts, :temperature, 0.7)
     max_tokens = Keyword.get(opts, :max_tokens)
     timeout = Keyword.get(opts, :timeout, @default_timeout)
+    base_url = get_base_url()
+    endpoint = "#{base_url}/v1/chat/completions"
 
     request_body = %{
       model: model,
@@ -104,8 +132,6 @@ defmodule Shoppollama.OllamaClient do
       {"Content-Type", "application/json"},
       {"Accept", "application/json"}
     ]
-
-    endpoint = "http://localhost:11434/v1/chat/completions"
 
     case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
@@ -151,7 +177,9 @@ defmodule Shoppollama.OllamaClient do
       {:error, "Ollama server is not available"}
   """
   def health_check do
-    case HTTPoison.get("http://localhost:11434/api/tags", [], timeout: 5_000) do
+    base_url = get_base_url()
+    timeout = div(get_timeout(), 10)  # Use 1/10 of the main timeout for health check
+    case HTTPoison.get("#{base_url}/api/tags", [], timeout: timeout, recv_timeout: timeout) do
       {:ok, %HTTPoison.Response{status_code: 200}} ->
         {:ok, "Ollama server is running"}
       {:ok, %HTTPoison.Response{status_code: status_code}} ->
@@ -172,7 +200,9 @@ defmodule Shoppollama.OllamaClient do
       {:ok, ["llama3.2:3b", "llama3.2:1b", "codellama:7b"]}
   """
   def list_models do
-    case HTTPoison.get("http://localhost:11434/api/tags", [], timeout: 10_000) do
+    base_url = get_base_url()
+    timeout = get_timeout()
+    case HTTPoison.get("#{base_url}/api/tags", [], timeout: timeout) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         case Jason.decode(body) do
           {:ok, %{"models" => models}} ->

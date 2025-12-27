@@ -138,6 +138,8 @@ defmodule ShoppollamaWeb.ChatLive do
           route_message_by_analysis(analysis, content, image_url, stored_message.id)
         {:error, reason} ->
           Logger.error("Failed to route message: #{inspect(reason)}")
+          # Send a fallback message when analysis fails
+          send(self(), {:call_ollama, content})
       end
 
       {:noreply, socket |> update_conversation_context(content, stored_message)}
@@ -362,26 +364,51 @@ defmodule ShoppollamaWeb.ChatLive do
 
   @impl true
   def handle_info({:call_ollama, message}, socket) do
-    # Simulate AI response for now - we'll replace with real Ollama integration
-    ai_response = generate_ai_response(message, socket.assigns.selected_model)
+    # Try to get AI response from Ollama with production settings
+    case OllamaClient.completion(message, model: socket.assigns.selected_model, timeout: 30_000) do
+      {:ok, ai_response} ->
+        # Successfully got response from Ollama
+        ai_message = %{
+          id: System.unique_integer([:positive]),
+          role: :assistant,
+          content: ai_response,
+          timestamp: DateTime.utc_now(),
+          model: socket.assigns.selected_model
+        }
 
-    ai_message = %{
-      id: System.unique_integer([:positive]),
-      role: :assistant,
-      content: ai_response,
-      timestamp: DateTime.utc_now(),
-      model: socket.assigns.selected_model
-    }
+        # Store the AI message in the MessageStore
+        {:ok, stored_ai_message} = MessageStore.add_message(socket.assigns.conversation_id, ai_message)
+        updated_messages = socket.assigns.messages ++ [stored_ai_message]
 
-    # Store the AI message in the MessageStore
-    {:ok, stored_ai_message} = MessageStore.add_message(socket.assigns.conversation_id, ai_message)
-    updated_messages = socket.assigns.messages ++ [stored_ai_message]
+        {:noreply,
+         socket
+         |> assign(:messages, updated_messages)
+         |> stream_insert(:messages, stored_ai_message)
+         |> assign(:thinking, false)}
+      
+      {:error, reason} ->
+        # Ollama failed, log the error and use fallback
+        Logger.error("Ollama failed in production: #{inspect(reason)}")
+        ai_response = generate_ai_response(message, socket.assigns.selected_model)
+        
+        ai_message = %{
+          id: System.unique_integer([:positive]),
+          role: :assistant,
+          content: ai_response,
+          timestamp: DateTime.utc_now(),
+          model: socket.assigns.selected_model
+        }
 
-    {:noreply,
-     socket
-     |> assign(:messages, updated_messages)
-     |> stream_insert(:messages, stored_ai_message)
-     |> assign(:thinking, false)}
+        # Store the AI message in the MessageStore
+        {:ok, stored_ai_message} = MessageStore.add_message(socket.assigns.conversation_id, ai_message)
+        updated_messages = socket.assigns.messages ++ [stored_ai_message]
+
+        {:noreply,
+         socket
+         |> assign(:messages, updated_messages)
+         |> stream_insert(:messages, stored_ai_message)
+         |> assign(:thinking, false)}
+    end
   end
 
   @impl true
@@ -711,6 +738,13 @@ defmodule ShoppollamaWeb.ChatLive do
       ".webp" -> "image/webp"
       _ -> "image/jpeg" # Default fallback
     end
+  end
+
+  # Catch-all to ensure thinking is always reset
+  @impl true
+  def handle_info(msg, socket) do
+    Logger.warn("Received unhandled message in ChatLive: #{inspect(msg)}")
+    {:noreply, assign(socket, :thinking, false)}
   end
 
 

@@ -75,6 +75,7 @@ if config_env() == :prod do
 
   config :shoppollama, ShoppollamaWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
+    server: true,
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
@@ -118,6 +119,15 @@ if config_env() == :prod do
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
+
+  # Configure database
+  database_path = System.get_env("DATABASE_PATH") || "/app/shoppollama.db"
+  
+  config :shoppollama, Shoppollama.Repo,
+    database: database_path,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5"),
+    stacktrace: true,
+    show_sensitive_data_on_connection_error: false
 
   # ## Configuring the mailer
   #
