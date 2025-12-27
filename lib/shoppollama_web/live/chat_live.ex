@@ -365,7 +365,7 @@ defmodule ShoppollamaWeb.ChatLive do
   @impl true
   def handle_info({:call_ollama, message}, socket) do
     # Try to get AI response from Ollama with production settings
-    case OllamaClient.completion(message, model: socket.assigns.selected_model, timeout: 30_000) do
+    case OllamaClient.completion(message, model: socket.assigns.selected_model, timeout: 120_000) do
       {:ok, ai_response} ->
         # Successfully got response from Ollama
         ai_message = %{

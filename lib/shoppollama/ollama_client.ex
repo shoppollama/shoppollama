@@ -9,7 +9,7 @@ defmodule Shoppollama.OllamaClient do
   @default_model "llama3.2:3b"
   @default_base_url "http://localhost:11434"
   @default_endpoint "#{@default_base_url}/api/generate"
-  @default_timeout 30_000
+  @default_timeout 120_000
 
   @doc """
   Gets the Ollama base URL from environment variables or uses default.
@@ -70,7 +70,7 @@ defmodule Shoppollama.OllamaClient do
       {"Accept", "application/json"}
     ]
 
-    case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout) do
+    case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout, recv_timeout: timeout) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         case Jason.decode(body) do
           {:ok, %{"response" => response}} -> {:ok, String.trim(response)}
@@ -130,7 +130,7 @@ defmodule Shoppollama.OllamaClient do
       {"Accept", "application/json"}
     ]
 
-    case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout) do
+    case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout, recv_timeout: timeout) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         case Jason.decode(body) do
           {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} ->
