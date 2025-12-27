@@ -177,7 +177,7 @@ const instance = new aws.ec2.Instance("shoppollama-instance", {
     vpcSecurityGroupIds: [ec2SecurityGroup.id],
     iamInstanceProfile: instanceProfile,
     userData: Buffer.from(userData).toString("base64") as string,
-    keyName: keyPair.then(k => k.keyName),
+    keyName: keyPair.then(k => k.keyName || ""),
     tags: {
         Name: "shoppollama",
         Environment: environment,
