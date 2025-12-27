@@ -79,8 +79,8 @@ jobs:
           # Refresh stack state to clear any pending operations
           pulumi refresh -y --skip-preview
           
-          # Update the launch template with new image
-          pulumi up -y --skip-preview --target urn:pulumi:prod::shoppollama::aws:ec2:launchTemplate:LaunchTemplate::shoppollama-launch-template
+          # Update all resources (only launch template should change)
+          pulumi up -y --skip-preview
         
       - name: Export outputs
         run: |
