@@ -64,10 +64,13 @@ jobs:
           # Login to Pulumi
           pulumi login s3://shoppollama-pulumi-state
           
-          # Create new unencrypted stack if needed
-          if ! pulumi stack select prod; then
-            pulumi stack init prod --no-secrets-provider
+          # Remove existing encrypted stack if it exists
+          if pulumi stack ls | grep -q "prod"; then
+            pulumi stack rm prod -y
           fi
+          
+          # Create new unencrypted stack
+          pulumi stack init prod --no-secrets-provider
           
           # Update ECR image configuration
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
