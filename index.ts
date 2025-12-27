@@ -226,7 +226,7 @@ echo "✅ Build server ready!"
 // Create Build Server Instance
 const buildInstance = new aws.ec2.Instance("shoppollama-build", {
     instanceType: "t3.medium",
-    subnetId: publicSubnet1.id,
+    subnetId: publicSubnet1.then(s => s.id),
     ami: aws.ec2.getAmi({
         filters: [
             { name: "name", values: ["amzn2-ami-hvm-*-x86_64-gp2"] },
@@ -366,7 +366,7 @@ const alb = new aws.lb.LoadBalancer("shoppollama-alb", {
     internal: false,
     loadBalancerType: "application",
     securityGroups: [albSecurityGroup.id],
-    subnetIds: [publicSubnet1.then(s => s.id), publicSubnet2.then(s => s.id)],
+    subnets: [publicSubnet1.then(s => s.id), publicSubnet2.then(s => s.id)],
     tags: {
         Name: "shoppollama-alb",
         Environment: environment,
@@ -410,7 +410,7 @@ const asg = new aws.autoscaling.Group("shoppollama-asg", {
         id: launchTemplate.id,
         version: launchTemplate.latestVersion.apply(v => v.toString()),
     },
-    vpcZoneIdentifier: [publicSubnet1.then(s => s.id), publicSubnet2.then(s => s.id)],
+    vpcZoneIdentifiers: [publicSubnet1.then(s => s.id), publicSubnet2.then(s => s.id)],
     targetGroupArns: [targetGroup.arn],
     minSize: 1,
     maxSize: 3,
