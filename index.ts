@@ -7,11 +7,11 @@ const instanceType = config.get("instanceType") || "t3.medium";
 const environment = config.get("environment") || "prod";
 const ecrImageUri = config.require("ecrImageUri");
 
-// Create EC2 Key Pair for SSH access
+// Use existing EC2 Key Pair for SSH access
 const keyPair = new aws.ec2.KeyPair("shoppollama-key", {
     keyName: "shoppollama-key",
     publicKey: `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDZEg3E41liKQGzWuP9j6SVXHeB6XMBKv8uC8+ma5Wld1iikboGDoVUY7BFw/Rp9SKdYiPOGwgH28HkcZRSZkKKn2sIIOluj2eRnn7s2AZaNiUS9jblR3Xg4VKfhYPzP/m40s18n+wO4fGEEsqE6KDx7w9fsOUAHo8iMBajD5JbGMUuDmrV1nwnRsnVJ21+xH6fVChBgzQKpvI6b7cjDXhzM9xPreqz1PqFV8+XLxDF0MBtFm9GKNcB6wiPeCSOj+MnG8eI919lHsW3OtRjNeTk45b1K/uaXIwFgEm/qBnhfIGRh1Wk46CYERIqECHFJ6bFPmnqF3O1nNChRiC8C2mVe9FWwdTE1/riNs+goMNtebb1s1lgkXq7hgRBUiqGoZp/wtRfz76fsAa+LBiD8xTJReiW8mJsh4YMoU/02f/Q8gohy6JZ+0fRr0SacMXcCLAydg5ZAVJXTPJB/M32mAptubJzeL3VvePu5kS4YyHmJXfQ1AbXBAWK8Va5IeF3L0INH2SKXALVc+kAyBNqXmMY7dXRY7hCvHTy2goFquDKDa3mhUi8H1NqjrRNJN0dM3H/2VXEqEUGKYXpE+1WwwuN7F/+obM3TCaCZD9yCHcAuMXYUtd9GwB7B7dgnBAuQHfVxhACotARBmb/HwG9VVedzpOBwuOoy/kDXUaeNteksQ== shoppollama@pulumi`
-});
+}, { import: "shoppollama-key" });
 
 // Create S3 bucket for Mix releases
 const releasesBucket = new aws.s3.Bucket("shoppollama-releases", {
@@ -22,20 +22,14 @@ const releasesBucket = new aws.s3.Bucket("shoppollama-releases", {
     },
 });
 
-// Create VPC
-const vpc = new aws.ec2.Vpc("shoppollama-vpc", {
-    cidrBlock: "10.0.0.0/16",
-    enableDnsHostnames: true,
-    enableDnsSupport: true,
-    tags: {
-        Name: "shoppollama-vpc",
-        Environment: environment,
-    },
+// Use existing VPC
+const vpc = aws.ec2.getVpc({
+    id: "vpc-083d38d951d2954e8",
 });
 
 // Create Internet Gateway
 const internetGateway = new aws.ec2.InternetGateway("shoppollama-igw", {
-    vpcId: vpc.id,
+    vpcId: vpc.then(vpc => vpc.id),
     tags: {
         Name: "shoppollama-igw",
         Environment: environment,
@@ -43,26 +37,12 @@ const internetGateway = new aws.ec2.InternetGateway("shoppollama-igw", {
 });
 
 // Create Public Subnets
-const publicSubnet1 = new aws.ec2.Subnet("shoppollama-public-subnet-1", {
-    vpcId: vpc.id,
-    cidrBlock: "10.0.1.0/24",
-    availabilityZone: aws.getAvailabilityZones().then((zones: aws.GetAvailabilityZonesResult) => zones.names[0]),
-    mapPublicIpOnLaunch: true,
-    tags: {
-        Name: "shoppollama-public-subnet-1",
-        Environment: environment,
-    },
+const publicSubnet1 = aws.ec2.getSubnet({
+    id: "subnet-099485b1570792810",
 });
 
-const publicSubnet2 = new aws.ec2.Subnet("shoppollama-public-subnet-2", {
-    vpcId: vpc.id,
-    cidrBlock: "10.0.2.0/24",
-    availabilityZone: aws.getAvailabilityZones().then((zones: aws.GetAvailabilityZonesResult) => zones.names[1]),
-    mapPublicIpOnLaunch: true,
-    tags: {
-        Name: "shoppollama-public-subnet-2",
-        Environment: environment,
-    },
+const publicSubnet2 = aws.ec2.getSubnet({
+    id: "subnet-0f4bd71ebf91a16c5",
 });
 
 // Create Route Table
