@@ -58,8 +58,13 @@ jobs:
           # Login to Pulumi
           pulumi login s3://shoppollama-pulumi-state
           
-          # Remove existing stack if it exists
-          pulumi stack rm single -y || true
+          # Select existing stack
+          if pulumi stack select single; then
+            # Destroy all resources
+            pulumi destroy -y --skip-preview
+            # Remove the stack
+            pulumi stack rm -y
+          fi
           
           # Create new stack
           pulumi stack init single
