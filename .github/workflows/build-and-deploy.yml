@@ -66,6 +66,9 @@ jobs:
           # Login to Pulumi
           pulumi login s3://shoppollama-pulumi-state
           
+          # Cancel any existing locks
+          pulumi cancel -s prod || true
+          
           # Select existing stack
           if ! pulumi stack select prod; then
             pulumi stack init prod
