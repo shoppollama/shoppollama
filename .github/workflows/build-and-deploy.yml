@@ -60,15 +60,16 @@ jobs:
         run: npm install
         
       - name: Configure Pulumi
+        env:
+          PULUMI_CONFIG_PASSPHRASE: 0H2b7gKVCHE16o+o90FTvnZxMQVIww2Zq3VQagwwe1E=
         run: |
           # Login to Pulumi
           pulumi login s3://shoppollama-pulumi-state
           
-          # Force remove existing encrypted stack if it exists
-          pulumi stack rm prod --force -y || true
-          
-          # Create new unencrypted stack
-          pulumi stack init prod --no-secrets-provider
+          # Select existing stack
+          if ! pulumi stack select prod; then
+            pulumi stack init prod
+          fi
           
           # Update ECR image configuration
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
