@@ -52,6 +52,9 @@ jobs:
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_PASSPHRASE }}
         run: |
+          # Install Pulumi SDK
+          pulumi install
+          
           # Login to Pulumi
           pulumi login s3://shoppollama-pulumi-state
           
