@@ -29,7 +29,7 @@ const vpc = aws.ec2.getVpc({
 
 // Create Internet Gateway
 const internetGateway = new aws.ec2.InternetGateway("shoppollama-igw", {
-    vpcId: vpc.then(vpc => vpc.id),
+    vpcId: vpc.then(v => v.id),
     tags: {
         Name: "shoppollama-igw",
         Environment: environment,
@@ -47,7 +47,7 @@ const publicSubnet2 = aws.ec2.getSubnet({
 
 // Create Route Table
 const routeTable = new aws.ec2.RouteTable("shoppollama-rt", {
-    vpcId: vpc.id,
+    vpcId: vpc.then(v => v.id),
     routes: [{
         cidrBlock: "0.0.0.0/0",
         gatewayId: internetGateway.id,
@@ -59,19 +59,19 @@ const routeTable = new aws.ec2.RouteTable("shoppollama-rt", {
 });
 
 // Associate Route Table with Subnets
-new aws.ec2.RouteTableAssociation("shoppollama-rta-1", {
-    subnetId: publicSubnet1.id,
+const routeTableAssociation1 = new aws.ec2.RouteTableAssociation("shoppollama-rta-1", {
+    subnetId: publicSubnet1.then(s => s.id),
     routeTableId: routeTable.id,
 });
 
-new aws.ec2.RouteTableAssociation("shoppollama-rta-2", {
-    subnetId: publicSubnet2.id,
+const routeTableAssociation2 = new aws.ec2.RouteTableAssociation("shoppollama-rta-2", {
+    subnetId: publicSubnet2.then(s => s.id),
     routeTableId: routeTable.id,
 });
 
 // Create Security Group for ALB (declared first to avoid forward reference)
 const albSecurityGroup = new aws.ec2.SecurityGroup("shoppollama-alb-sg", {
-    vpcId: vpc.id,
+    vpcId: vpc.then(v => v.id),
     ingress: [{
         protocol: "tcp",
         fromPort: 80,
@@ -138,7 +138,7 @@ const instanceProfile = new aws.iam.InstanceProfile("shoppollama-instance-profil
 
 // Create Security Group for Build Server
 const buildSecurityGroup = new aws.ec2.SecurityGroup("shoppollama-build-sg", {
-    vpcId: vpc.id,
+    vpcId: vpc.then(vpc => vpc.id),
     ingress: [
         {
             protocol: "tcp",
@@ -246,7 +246,7 @@ const buildInstance = new aws.ec2.Instance("shoppollama-build", {
 
 // Create Security Group for EC2
 const ec2SecurityGroup = new aws.ec2.SecurityGroup("shoppollama-ec2-sg", {
-    vpcId: vpc.id,
+    vpcId: vpc.then(vpc => vpc.id),
     ingress: [
         {
             protocol: "tcp",
@@ -366,7 +366,7 @@ const alb = new aws.lb.LoadBalancer("shoppollama-alb", {
     internal: false,
     loadBalancerType: "application",
     securityGroups: [albSecurityGroup.id],
-    subnets: [publicSubnet1.id, publicSubnet2.id],
+    subnetIds: [publicSubnet1.then(s => s.id), publicSubnet2.then(s => s.id)],
     tags: {
         Name: "shoppollama-alb",
         Environment: environment,
@@ -377,7 +377,7 @@ const alb = new aws.lb.LoadBalancer("shoppollama-alb", {
 const targetGroup = new aws.lb.TargetGroup("shoppollama-tg", {
     port: 4000,
     protocol: "HTTP",
-    vpcId: vpc.id,
+    vpcId: vpc.then(vpc => vpc.id),
     targetType: "instance",
     healthCheck: {
         path: "/",
@@ -410,7 +410,7 @@ const asg = new aws.autoscaling.Group("shoppollama-asg", {
         id: launchTemplate.id,
         version: launchTemplate.latestVersion.apply(v => v.toString()),
     },
-    vpcZoneIdentifiers: [publicSubnet1.id, publicSubnet2.id],
+    vpcZoneIdentifier: [publicSubnet1.then(s => s.id), publicSubnet2.then(s => s.id)],
     targetGroupArns: [targetGroup.arn],
     minSize: 1,
     maxSize: 3,
@@ -431,7 +431,7 @@ const asg = new aws.autoscaling.Group("shoppollama-asg", {
 // Export outputs
 export const loadBalancerDns = alb.dnsName;
 export const loadBalancerUrl = pulumi.interpolate`http://${alb.dnsName}`;
-export const vpcId = vpc.id;
+export const vpcId = vpc.then(vpc => vpc.id);
 export const instanceProfileArn = instanceProfile.arn;
 export const buildServerPublicIp = buildInstance.publicIp;
 export const buildServerPublicDns = buildInstance.publicDns;
