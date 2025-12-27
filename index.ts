@@ -255,7 +255,7 @@ const buildInstance = new aws.ec2.Instance("shoppollama-build", {
         mostRecent: true,
     }).then((ami: aws.GetAmiResult) => ami.id),
     vpcSecurityGroupIds: [buildSecurityGroup.id],
-    iamInstanceProfile: instanceProfile,
+    iamInstanceProfile: instanceProfileBuild,
     userData: Buffer.from(buildServerUserData).toString("base64") as string,
     keyName: keyPair.keyName,
     tags: {
@@ -306,7 +306,7 @@ const ecrPolicy = new aws.iam.RolePolicyAttachment("shoppollama-ecr-policy", {
 });
 
 // Create Instance Profile
-const instanceProfile = new aws.iam.InstanceProfile("shoppollama-instance-profile", {
+const instanceProfileBuild = new aws.iam.InstanceProfile("shoppollama-instance-profile", {
     role: ec2Role.name,
 });
 
