@@ -58,7 +58,7 @@ defmodule ShoppollamaWeb.ChatLive do
      |> assign(:conversation_id, conversation_id)
      |> assign(:messages, existing_messages)
      |> assign(:current_message, "")
-     |> assign(:selected_model, "gpt-oss:20b")
+     |> assign(:selected_model, "llama3.2:3b")
      |> assign(:reasoning_effort, "medium")
      |> assign(:ollama_connected, true)
      |> assign(:store_connected, check_store_connection())
