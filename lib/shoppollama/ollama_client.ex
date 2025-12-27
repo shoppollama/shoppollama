@@ -43,7 +43,7 @@ defmodule Shoppollama.OllamaClient do
       iex> OllamaClient.completion("Analyze this text", model: "llama3.2:1b")
       {:ok, "Analysis result..."}
   """
-  def completion(prompt, opts \\[]) do
+  def completion(prompt, opts \\ []) do
     model = Keyword.get(opts, :model, @default_model)
     temperature = Keyword.get(opts, :temperature, 0.7)
     stream = Keyword.get(opts, :stream, false)
@@ -51,47 +51,44 @@ defmodule Shoppollama.OllamaClient do
     base_url = get_base_url()
     endpoint = "#{base_url}/api/generate"
 
-    # Check if Ollama is available first
-    case health_check() do
-      {:ok, _} ->
-        # Ollama is available, proceed with request
-        request_body = %{
-          model: model,
-          prompt: prompt,
-          temperature: temperature,
-          stream: stream
-        }
+    # Skip health check for now to avoid timeouts
+    # case health_check() do
+    #   {:ok, _} ->
+    #     # Ollama is available, proceed with request
+    # end
+    
+    # Ollama is available, proceed with request
+    request_body = %{
+      model: model,
+      prompt: prompt,
+      temperature: temperature,
+      stream: stream
+    }
 
-        headers = [
-          {"Content-Type", "application/json"},
-          {"Accept", "application/json"}
-        ]
+    headers = [
+      {"Content-Type", "application/json"},
+      {"Accept", "application/json"}
+    ]
 
-        case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout) do
-          {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
-            case Jason.decode(body) do
-              {:ok, %{"response" => response}} -> {:ok, String.trim(response)}
-              {:ok, response} -> {:error, "Unexpected response format: #{inspect(response)}"}
-              {:error, decode_error} -> {:error, "JSON decode error: #{inspect(decode_error)}"}
-            end
-
-          {:ok, %HTTPoison.Response{status_code: status_code, body: body}} ->
-            Logger.error("Ollama request failed with status #{status_code}: #{body}")
-            {:error, "Ollama server error: #{status_code}"}
-
-          {:error, %HTTPoison.Error{reason: reason}} ->
-            Logger.error("Ollama connection error: #{inspect(reason)}")
-            {:error, "Failed to connect to Ollama server: #{inspect(reason)}"}
-
-          {:error, error} ->
-            Logger.error("Unexpected Ollama error: #{inspect(error)}")
-            {:error, "Unexpected error: #{inspect(error)}"}
+    case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        case Jason.decode(body) do
+          {:ok, %{"response" => response}} -> {:ok, String.trim(response)}
+          {:ok, response} -> {:error, "Unexpected response format: #{inspect(response)}"}
+          {:error, decode_error} -> {:error, "JSON decode error: #{inspect(decode_error)}"}
         end
-      
-      {:error, _} ->
-        # Ollama is not available, return a mock response
-        Logger.warn("Ollama is not available, returning mock response")
-        {:ok, "Ollama is currently unavailable. This is a mock response. Please install Ollama to enable AI features."}
+
+      {:ok, %HTTPoison.Response{status_code: status_code, body: body}} ->
+        Logger.error("Ollama request failed with status #{status_code}: #{body}")
+        {:error, "Ollama server error: #{status_code}"}
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        Logger.error("Ollama connection error: #{inspect(reason)}")
+        {:error, "Failed to connect to Ollama server: #{inspect(reason)}"}
+
+      {:error, error} ->
+        Logger.error("Unexpected Ollama error: #{inspect(error)}")
+        {:error, "Unexpected error: #{inspect(error)}"}
     end
   end
 
