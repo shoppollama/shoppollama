@@ -255,7 +255,7 @@ const buildInstance = new aws.ec2.Instance("shoppollama-build", {
         mostRecent: true,
     }).then((ami: aws.GetAmiResult) => ami.id),
     vpcSecurityGroupIds: [buildSecurityGroup.id],
-    iamInstanceProfile: instanceProfileBuild,
+    iamInstanceProfile: instanceProfile,
     userData: Buffer.from(buildServerUserData).toString("base64") as string,
     keyName: keyPair.keyName,
     tags: {
@@ -303,11 +303,6 @@ const ssmPolicy = new aws.iam.RolePolicyAttachment("shoppollama-ssm-policy", {
 const ecrPolicy = new aws.iam.RolePolicyAttachment("shoppollama-ecr-policy", {
     role: ec2Role.name,
     policyArn: aws.iam.ManagedPolicies.AmazonEC2ContainerRegistryReadOnly,
-});
-
-// Create Instance Profile
-const instanceProfileBuild = new aws.iam.InstanceProfile("shoppollama-instance-profile", {
-    role: ec2Role.name,
 });
 
 // User data script for EC2 instance
