@@ -12,18 +12,13 @@ config :shoppollama, Shoppollama.Repo,
 #
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
-# to bundle .js and .css sources.
-config :shoppollama, ShoppollamaWeb.Endpoint,
-  # Binding to loopback ipv4 address prevents access from other machines.
-  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-
 # Configure the endpoint for development
 config :shoppollama, ShoppollamaWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4000],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "your-secret-key-base-for-development",
+  secret_key_base: "your-secret-key-base-for-development-must-be-at-least-64-bytes-long-for-the-cookie-store-to-work-properly",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]}
@@ -86,4 +81,3 @@ config :logger, level: :debug
 
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
->>>>>>> fix_stripe
