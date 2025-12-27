@@ -49,6 +49,8 @@ jobs:
           version: latest
 
       - name: Configure Pulumi
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_PASSPHRASE }}
         run: |
           # Login to Pulumi
           pulumi login s3://shoppollama-pulumi-state
@@ -56,8 +58,8 @@ jobs:
           # Remove existing stack if it exists
           pulumi stack rm single -y || true
           
-          # Create new stack without passphrase
-          PULUMI_CONFIG_PASSPHRASE="" pulumi stack init single
+          # Create new stack
+          pulumi stack init single
           
           # Update ECR image configuration
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
