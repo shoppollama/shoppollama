@@ -62,12 +62,12 @@ const routeTable = new aws.ec2.RouteTable("shoppollama-rt", {
 const routeTableAssociation1 = new aws.ec2.RouteTableAssociation("shoppollama-rta-1", {
     subnetId: publicSubnet1.then(s => s.id),
     routeTableId: routeTable.id,
-}, { import: "rtbassoc-01bc4875139990e36" });
+}, { import: "subnet-099485b1570792810/rtb-05ba27a43fb9c85c0" });
 
 const routeTableAssociation2 = new aws.ec2.RouteTableAssociation("shoppollama-rta-2", {
     subnetId: publicSubnet2.then(s => s.id),
     routeTableId: routeTable.id,
-}, { import: "rtbassoc-0a380e43be9736fb3" });
+}, { import: "subnet-0f4bd71ebf91a16c5/rtb-05ba27a43fb9c85c0" });
 
 // Create Security Group for ALB (declared first to avoid forward reference)
 const albSecurityGroup = new aws.ec2.SecurityGroup("shoppollama-alb-sg", {
