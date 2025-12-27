@@ -71,6 +71,17 @@ defmodule Shoppollama.ProductParser do
   end
 
   defp extract_price_from_analysis(analysis) do
+    # First try to get price from products array (new simplified format)
+    case Map.get(analysis, :products, []) do
+      [product | _] when is_map(product) ->
+        price = Map.get(product, "price") || Map.get(product, :price)
+        if is_number(price), do: price, else: parse_price_from_entities(analysis)
+      _ ->
+        parse_price_from_entities(analysis)
+    end
+  end
+
+  defp parse_price_from_entities(analysis) do
     case Map.get(analysis.entities, :prices, []) do
       [price_str | _] -> parse_price_string(price_str)
       [] -> nil
@@ -87,12 +98,15 @@ defmodule Shoppollama.ProductParser do
   end
 
   defp build_enhanced_title(product, analysis) do
-    base_name = Map.get(product, :name, "Product")
+    # Handle both atom and string keys from LLM response
+    base_name = Map.get(product, :name) || Map.get(product, "name") || "Product"
     
     # Clean music product names by removing type suffixes
-    cleaned_name = clean_music_product_name(base_name, Map.get(product, :type))
+    product_type = Map.get(product, :type) || Map.get(product, "type")
+    cleaned_name = clean_music_product_name(base_name, product_type)
     
-    attributes = Map.get(product, :attributes, %{})
+    # Handle both atom and string keys for attributes
+    attributes = Map.get(product, :attributes) || Map.get(product, "attributes") || %{}
 
     # Add color if available
     title_with_color = case Map.get(attributes, "color") do

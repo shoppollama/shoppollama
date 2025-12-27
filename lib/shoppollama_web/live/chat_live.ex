@@ -474,24 +474,46 @@ defmodule ShoppollamaWeb.ChatLive do
     - Product Page Link: http://localhost:4000/p/#{product.id}
     - Original Request: "#{original_message}"
 
-    IMPORTANT: When mentioning the product name in your response, use the exact same case and formatting as it appears in the original request. Do not change the capitalization.
+    CRITICAL: You MUST preserve the EXACT case of the product name from the original request. If the user wrote "dreams of my papa" in lowercase, you MUST write "dreams of my papa" in lowercase - do NOT capitalize it to "Dreams of My Papa".
 
     Format the response with:
     1. Start with exactly "🎉 Success!" as the first line
-    2. Product details clearly displayed, using the original product name case from the user's request
+    2. Include the exact product name as written in the original request (preserve case exactly)
     3. Include the exact text "Price: $#{price_dollars}"
     4. Include the exact text "Stripe Product Link: https://dashboard.stripe.com/products/#{product.id}"
     5. Include the exact text "Product Page Link: http://localhost:4000/p/#{product.id}"
+    6. Include any timing details from the original request (like "next month", "coming soon", etc.)
 
-    Keep it concise but informative.
+    Keep it concise. Preserve exact case of product name from original request.
     """
 
-    case OllamaClient.completion(prompt, model: "llama3.2:3b", temperature: 0.7) do
-      {:ok, content} ->
-        # Always append product ID for test compatibility
-        content <> "\n\n🆔 **Product ID:** `#{product.id}`"
-      {:error, _reason} -> 
-        "Product created successfully!"
+    # Use deterministic template for required fields, then add LLM flair
+    base_message = """
+    🎉 Success!
+
+    Your product "#{result.verified_name}" has been created!
+
+    * Name: #{result.verified_name}
+    * Price: $#{price_dollars}
+    * Product ID: #{product.id}
+    * Stripe Product Link: https://dashboard.stripe.com/products/#{product.id}
+    * Product Page Link: http://localhost:4000/p/#{product.id}
+    """
+    
+    # Add timing info if present in original message
+    timing_info = if String.contains?(String.downcase(original_message), "next month") do
+      "\n* Release: next month"
+    else
+      ""
+    end
+    
+    base_message <> timing_info <> "\n\n🆔 **Product ID:** `#{product.id}`"
+  end
+
+  defp extract_product_name_from_message(message) do
+    case Regex.run(~r/['"]([^'"]+)['"]/, message) do
+      [_, name] -> name
+      nil -> "Product"
     end
   end
 

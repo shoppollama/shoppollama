@@ -6,7 +6,7 @@ defmodule Shoppollama.OllamaClient do
 
   require Logger
 
-  @default_model "llama3.2:3b"
+  @default_model "qwen2:1.5b"
   @default_base_url "http://localhost:11434"
   @default_endpoint "#{@default_base_url}/api/generate"
   @default_timeout 120_000
@@ -62,7 +62,8 @@ defmodule Shoppollama.OllamaClient do
       model: model,
       prompt: prompt,
       temperature: temperature,
-      stream: stream
+      stream: stream,
+      format: "json"
     }
 
     headers = [
@@ -120,7 +121,8 @@ defmodule Shoppollama.OllamaClient do
       model: model,
       messages: messages,
       temperature: temperature,
-      stream: false
+      stream: false,
+      format: "json"
     }
 
     request_body = if max_tokens, do: Map.put(request_body, :max_tokens, max_tokens), else: request_body
