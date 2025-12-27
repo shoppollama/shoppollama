@@ -12,7 +12,7 @@ const vpc = aws.ec2.getVpc({
 
 // Use existing Internet Gateway
 const internetGateway = aws.ec2.getInternetGateway({
-    id: "igw-0a012057cc87d129c",
+    internetGatewayId: "igw-0a012057cc87d129c",
 });
 
 // Use existing subnets

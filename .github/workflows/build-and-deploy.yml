@@ -25,43 +25,31 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-duration-seconds: 1200
-          
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-        
-      - name: Create ECR repository if it doesn't exist
-        run: |
-          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} || \
-          aws ecr create-repository --repository-name ${{ env.ECR_REPOSITORY }} --region ${{ env.AWS_REGION }}
-          
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          
-      - name: Install Pulumi
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: shoppollama
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Setup Pulumi
         uses: pulumi/setup-pulumi@v2
         with:
-          pulumi-version: 'latest'
-          
-      - name: Install Node.js dependencies
-        run: npm install
-        
+          version: latest
+
       - name: Configure Pulumi
-        env:
-          PULUMI_CONFIG_PASSPHRASE: 0H2b7gKVCHE16o+o90FTvnZxMQVIww2Zq3VQagwwe1E=
         run: |
           # Login to Pulumi
           pulumi login s3://shoppollama-pulumi-state
@@ -69,22 +57,19 @@ jobs:
           # Cancel any existing locks
           pulumi cancel -s prod || true
           
-          # Select existing stack
-          pulumi stack select prod
+          # Switch to single instance stack
+          if ! pulumi stack select single; then
+            pulumi stack init single
+          fi
           
           # Update ECR image configuration
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
           pulumi config set ecrImageUri "$IMAGE_URI"
           
-          # Refresh stack state to clear any pending operations
-          pulumi refresh -y --skip-preview
-          
-          # Update all resources (only launch template should change)
+          # Deploy single instance
           pulumi up -y --skip-preview
-        
+
       - name: Export outputs
-        env:
-          PULUMI_CONFIG_PASSPHRASE: 0H2b7gKVCHE16o+o90FTvnZxMQVIww2Zq3VQagwwe1E=
         run: |
-          pulumi stack output loadBalancerUrl > loadbalancer-url.txt
-          echo "Load Balancer URL: $(cat loadbalancer-url.txt)"
+          echo "Instance IP: $(pulumi stack output instancePublicIp)"
+          echo "Application URL: $(pulumi stack output applicationUrl)"
