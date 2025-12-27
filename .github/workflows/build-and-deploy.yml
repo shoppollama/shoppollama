@@ -66,7 +66,9 @@ jobs:
           
           # Remove existing encrypted stack if it exists
           if pulumi stack ls | grep -q "prod"; then
-            pulumi stack rm prod -y
+            pulumi stack select prod
+            pulumi destroy -y
+            pulumi stack rm -y
           fi
           
           # Create new unencrypted stack
