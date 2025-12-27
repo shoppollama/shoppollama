@@ -64,12 +64,8 @@ jobs:
           # Login to Pulumi
           pulumi login s3://shoppollama-pulumi-state
           
-          # Remove existing encrypted stack if it exists
-          if pulumi stack ls | grep -q "prod"; then
-            pulumi stack select prod
-            pulumi destroy -y
-            pulumi stack rm -y
-          fi
+          # Force remove existing encrypted stack if it exists
+          pulumi stack rm prod --force -y || true
           
           # Create new unencrypted stack
           pulumi stack init prod --no-secrets-provider
