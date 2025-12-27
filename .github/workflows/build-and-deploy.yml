@@ -61,16 +61,21 @@ jobs:
         
       - name: Configure Pulumi
         run: |
+          # Login to Pulumi
           pulumi login s3://shoppollama-pulumi-state
-          pulumi stack select prod
           
-      - name: Update Pulumi with new ECR image
-        run: |
+          # Create new unencrypted stack if needed
+          if ! pulumi stack select prod; then
+            pulumi stack init prod --no-secrets-provider
+          fi
+          
+          # Update ECR image configuration
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
           pulumi config set ecrImageUri "$IMAGE_URI"
+          pulumi config set vpcId "vpc-083d38d951d2954e8"
           
-      - name: Deploy infrastructure with Pulumi
-        run: pulumi up -y --skip-preview
+          # Deploy infrastructure
+          pulumi up -y --skip-preview
         
       - name: Export outputs
         run: |
