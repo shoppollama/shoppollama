@@ -58,7 +58,7 @@ defmodule ShoppollamaWeb.ChatLive do
      |> assign(:conversation_id, conversation_id)
      |> assign(:messages, existing_messages)
      |> assign(:current_message, "")
-     |> assign(:selected_model, "llama2:latest")
+     |> assign(:selected_model, "llama3.2:3b")
      |> assign(:reasoning_effort, "medium")
      |> assign(:ollama_connected, true)
      |> assign(:store_connected, check_store_connection())
@@ -600,7 +600,7 @@ defmodule ShoppollamaWeb.ChatLive do
         "Sales analytics are one of my specialties! I can help you track revenue trends, identify best-selling products, analyze customer behavior, and optimize your sales funnel. Connect your store to get detailed insights."
 
       true ->
-        "Hi there! I'm ShoppOllama, your AI-powered Shopify assistant running on #{model}. I can help you manage your store, analyze data, automate tasks, and much more. How can I assist you today?\n\n💡 **Try creating a product**: \"Create a red hoodie for $45\""
+        "Hi there! I'm ShoppOllama, your AI-powered store assistant running on #{model}. I can help you manage your store, analyze data, automate tasks, and much more. How can I assist you today?\n\n💡 **Try creating a product**: \"Create a red hoodie for $45\""
     end
   end
 
