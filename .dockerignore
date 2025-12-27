@@ -1,0 +1,10 @@
+node_modules/
+_build/
+deps/
+*.log
+.env
+.env.*
+shoppollama*.db
+shoppollama*.db-*
+.DS_Store
+.erlang.cookie

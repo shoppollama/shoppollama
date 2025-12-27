@@ -1,0 +1,9 @@
+shoppollama.yourdomain.com {
+    root * /var/www/shoppollama
+    encode zstd gzip
+    reverse_proxy localhost:4001
+    header -Server
+    log {
+        output file /var/log/caddy/access_shoppollama.log
+    }
+}

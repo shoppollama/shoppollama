@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Superhuman Split Conversation Tool</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:400,500,600&display=swap" />
+  <link rel="stylesheet" href="design_iterations/superhuman_job_theme_1.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flowbite@2.0.0/dist/flowbite.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .convo-row {
+      transition: background 0.18s, box-shadow 0.18s, transform 0.2s;
+      cursor: pointer;
+    }
+    .convo-row.selected, .convo-row:focus {
+      background: var(--primary) !important;
+      color: var(--primary-foreground) !important;
+      transform: translateX(8px) scale(1.01);
+      box-shadow: var(--shadow-sm) !important;
+    }
+    .convo-row:hover:not(.selected) {
+      background: var(--muted) !important;
+      box-shadow: var(--shadow-2xs) !important;
+    }
+    .convo-detail-panel {
+      animation: slideInRight 0.3s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(16px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .ai-panel {
+      animation: fadeIn 0.4s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .search-input:focus {
+      box-shadow: 0 0 0 2px var(--ring);
+      border-color: var(--ring);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)]" style="font-family: var(--font-sans);">
+  <!-- Header Bar -->
+  <header class="flex items-center px-8 py-4 border-b border-[var(--border)] bg-[var(--background)] gap-4">
+    <button class="mr-2 text-xl text-[var(--muted-foreground)] focus:outline-none">
+      <i data-lucide="menu"></i>
+    </button>
+    <h1 class="text-lg font-semibold tracking-tight mr-6">Conversations</h1>
+    <div class="flex-1 flex items-center gap-2 max-w-xl">
+      <input type="text" placeholder="Search conversations..." class="search-input w-full px-4 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--input)] focus:outline-none transition" />
+      <select class="px-3 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--input)] text-sm focus:outline-none">
+        <option value="">All</option>
+        <option value="unread">Unread</option>
+        <option value="starred">Starred</option>
+      </select>
+    </div>
+    <button class="ml-4 text-[var(--muted-foreground)]">
+      <i data-lucide="user"></i>
+    </button>
+  </header>
+
+  <!-- Main 3-Pane Split Area -->
+  <main class="flex-1 flex min-h-0">
+    <!-- Conversation List (Left) -->
+    <section class="w-full max-w-sm flex flex-col border-r border-[var(--border)] bg-[var(--sidebar)] overflow-y-auto" tabindex="0">
+      <ul class="divide-y divide-[var(--border)]">
+        <li class="convo-row selected flex items-center px-6 py-4 gap-4 focus:outline-none" tabindex="0">
+          <div class="flex flex-col flex-1">
+            <span class="font-semibold">Allie Chan</span>
+            <span class="text-sm text-[var(--muted-foreground)]">Illustrations for newsletter</span>
+            <span class="text-xs text-[var(--muted-foreground)] mt-1">2h ago</span>
+          </div>
+        </li>
+        <li class="convo-row flex items-center px-6 py-4 gap-4 focus:outline-none" tabindex="0">
+          <div class="flex flex-col flex-1">
+            <span class="font-semibold">Nicole Luvalle</span>
+            <span class="text-sm text-[var(--muted-foreground)]">Review process</span>
+            <span class="text-xs text-[var(--muted-foreground)] mt-1">Yesterday</span>
+          </div>
+        </li>
+        <li class="convo-row flex items-center px-6 py-4 gap-4 focus:outline-none" tabindex="0">
+          <div class="flex flex-col flex-1">
+            <span class="font-semibold">Kaitlan Norrod</span>
+            <span class="text-sm text-[var(--muted-foreground)]">Office invoice</span>
+            <span class="text-xs text-[var(--muted-foreground)] mt-1">2d ago</span>
+          </div>
+        </li>
+        <li class="convo-row flex items-center px-6 py-4 gap-4 focus:outline-none" tabindex="0">
+          <div class="flex flex-col flex-1">
+            <span class="font-semibold">Rahul Vohra</span>
+            <span class="text-sm text-[var(--muted-foreground)]">Upcoming OOO</span>
+            <span class="text-xs text-[var(--muted-foreground)] mt-1">3d ago</span>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Conversation Thread (Middle) -->
+    <section class="flex-1 min-w-0 flex flex-col bg-[var(--background)] p-10 convo-detail-panel overflow-y-auto">
+      <div class="mb-8">
+        <h2 class="text-xl font-bold mb-2">Illustrations for newsletter</h2>
+        <div class="flex items-center gap-2 text-sm text-[var(--muted-foreground)] mb-4">
+          <span>Allie Chan</span>
+          <span>•</span>
+          <span>2h ago</span>
+        </div>
+        <div class="bg-[var(--card)] rounded-[var(--radius-md)] p-6 shadow mb-4">
+          <p>Great! I added the article title as a source for our upcoming newsletter. Let me know if you need any more illustrations or have feedback.</p>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-[var(--muted-foreground)] mb-4">
+          <span>You</span>
+          <span>•</span>
+          <span>1h ago</span>
+        </div>
+        <div class="bg-[var(--card)] rounded-[var(--radius-md)] p-6 shadow mb-4">
+          <p>Thanks Allie! This is perfect. I’ll review and get back to you if we need anything else.</p>
+        </div>
+      </div>
+      <div class="mt-auto flex gap-2">
+        <input type="text" placeholder="Type a reply..." class="flex-1 px-4 py-3 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--input)] focus:outline-none" />
+        <button class="apply-btn px-6 py-3 rounded-[var(--radius-md)] bg-[var(--primary)] text-[var(--primary-foreground)] font-semibold shadow hover:shadow-md transition">Send</button>
+      </div>
+    </section>
+
+    <!-- AI Side Panel (Right) -->
+    <aside class="w-full max-w-xs flex flex-col bg-[var(--sidebar)] border-l border-[var(--border)] p-8 ai-panel">
+      <div class="flex items-center gap-4 mb-6">
+        <img src="https://placehold.co/48x48" alt="User" class="rounded-full w-12 h-12 object-cover border border-[var(--border)]" />
+        <div>
+          <h3 class="text-lg font-semibold mb-1">Allie Chan</h3>
+          <div class="text-xs text-[var(--muted-foreground)]">San Francisco</div>
+        </div>
+      </div>
+      <div class="mb-6">
+        <h4 class="font-semibold mb-2">AI Summary</h4>
+        <p class="text-sm text-[var(--muted-foreground)]">Allie provided illustrations for the newsletter and is open to more feedback or requests. You thanked her and will follow up if needed.</p>
+      </div>
+      <div class="mb-6">
+        <h4 class="font-semibold mb-2">Suggested Replies</h4>
+        <ul class="space-y-2">
+          <li><button class="w-full text-left px-3 py-2 rounded bg-[var(--muted)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)] transition">Thank you, Allie! Will reach out if we need more.</button></li>
+          <li><button class="w-full text-left px-3 py-2 rounded bg-[var(--muted)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)] transition">Could you send a few more options?</button></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-2">Actions</h4>
+        <button class="w-full px-3 py-2 rounded bg-[var(--primary)] text-[var(--primary-foreground)] font-semibold shadow hover:shadow-md transition mb-2">Summarize Thread</button>
+        <button class="w-full px-3 py-2 rounded bg-[var(--muted)] text-[var(--foreground)] font-semibold shadow hover:shadow-xs transition">Mark as Done</button>
+      </div>
+    </aside>
+  </main>
+  <script>
+    lucide.createIcons();
+    // Keyboard navigation for conversation list (demo only, not full logic)
+    const convoRows = document.querySelectorAll('.convo-row');
+    let selectedConvoIdx = 0;
+    function updateConvoSelection(idx) {
+      convoRows.forEach((row, i) => {
+        row.classList.toggle('selected', i === idx);
+        if (i === idx) row.focus();
+      });
+    }
+    document.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'ArrowDown'].includes(e.key)) {
+        if (e.key === 'ArrowUp') selectedConvoIdx = Math.max(0, selectedConvoIdx - 1);
+        if (e.key === 'ArrowDown') selectedConvoIdx = Math.min(convoRows.length - 1, selectedConvoIdx + 1);
+        updateConvoSelection(selectedConvoIdx);
+        e.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>

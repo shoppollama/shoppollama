@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ShoppOllama Mobile Chat + Product</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:400,500,600&display=swap" />
+  <link rel="stylesheet" href="design_iterations/mobile_vibrant_theme.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flowbite@2.0.0/dist/flowbite.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .slide-up-enter {
+      animation: slideUpIn 0.35s cubic-bezier(.4,0,.2,1);
+    }
+    .slide-up-leave {
+      animation: slideUpOut 0.25s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes slideUpIn {
+      from { opacity: 0; transform: translateY(40px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes slideUpOut {
+      from { opacity: 1; transform: translateY(0) scale(1); }
+      to { opacity: 0; transform: translateY(40px) scale(0.95); }
+    }
+    .chat-bubble-user {
+      animation: userMsgIn 0.3s cubic-bezier(.4,0,.2,1);
+    }
+    .chat-bubble-ai {
+      animation: aiMsgIn 0.4s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes userMsgIn {
+      from { opacity: 0; transform: translateX(20px) scale(0.95); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    @keyframes aiMsgIn {
+      from { opacity: 0; transform: translateY(15px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      transform: scale(0);
+      animation: ripple 0.4s linear;
+      background: var(--primary);
+      opacity: 0.3;
+      pointer-events: none;
+    }
+    @keyframes ripple {
+      to {
+        transform: scale(2);
+        opacity: 0;
+      }
+    }
+    .glass {
+      background: var(--card);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow-md);
+    }
+    .sticky-bottom {
+      position: sticky;
+      bottom: 0;
+      z-index: 20;
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)]" style="font-family: var(--font-sans);">
+  <!-- Header -->
+  <header class="header flex items-center justify-between px-4 py-3">
+    <div class="flex items-center gap-2">
+      <span class="rounded-full bg-[var(--primary)] w-8 h-8 flex items-center justify-center font-bold text-[var(--primary-foreground)]">S</span>
+      <span class="font-semibold text-base">ShoppOllama</span>
+      <span class="ml-2 text-xs px-2 py-1 rounded-full bg-[var(--accent)] text-[var(--accent-foreground)]">AI</span>
+    </div>
+    <button class="btn px-3 py-1 text-sm font-semibold">Connect</button>
+  </header>
+
+  <!-- Product Preview (collapsible) -->
+  <section id="productPreview" class="product-preview glass mx-2 mt-2 mb-1 p-4 rounded-xl shadow-md slide-up-enter">
+    <div class="flex items-center gap-3">
+      <img src="https://placehold.co/64x64" alt="Product" class="rounded-lg w-16 h-16 object-cover border border-[var(--border)]" />
+      <div class="flex-1">
+        <div class="font-semibold text-lg">Dreams of My Papa</div>
+        <div class="text-sm text-[var(--muted-foreground)]">$12.30</div>
+        <div class="text-xs text-[var(--muted-foreground)] mt-1">Coming next month</div>
+      </div>
+      <button id="toggleProduct" class="btn px-2 py-2 rounded-full" aria-label="Collapse product preview">
+        <i data-lucide="chevron-up"></i>
+      </button>
+    </div>
+  </section>
+
+  <!-- Chat Area -->
+  <main class="flex-1 flex flex-col overflow-y-auto hide-scrollbar px-2 pb-2" id="chatArea">
+    <div class="flex flex-col gap-3 mt-2">
+      <div class="self-end max-w-[80%] chat-bubble-user bg-[var(--primary)] text-[var(--primary-foreground)] px-4 py-3 rounded-2xl shadow relative">
+        create a page for my brand new "dreams of my papa album" for 12.30 . it comes out next month
+        <div class="text-xs text-[var(--muted-foreground)] mt-1 text-right">09:06 PM</div>
+      </div>
+      <div class="self-start max-w-[80%] chat-bubble-ai bg-[var(--card)] text-[var(--card-foreground)] px-4 py-3 rounded-2xl shadow relative">
+        <div class="font-bold mb-1">✅ Product created successfully!</div>
+        <div class="mb-1"> <b>Dreams of My Papa</b> has been created in Stripe.</div>
+        <ul class="text-sm mb-1">
+          <li>💰 <b>Price:</b> $12.3</li>
+          <li><b>Product ID:</b> <code>prod_Sx7G4awPwkrZGX</code></li>
+          <li><b>Price ID:</b> <code>price_1S1D1kCKvpfsNUQfjq55Eqh</code></li>
+          <li>🔗 <b>Stripe Product Link:</b> <a href="#" class="underline">stripe.com/products/prod_Sx7G4awPwkrZGX</a></li>
+          <li>✅ <b>Name Verified:</b> Dreams of My Papa</li>
+          <li>🔗 <b>Product Page Link:</b> <a href="#" class="underline">localhost:4000/p/prod_Sx7G4awPwkrZGX</a></li>
+        </ul>
+        <div>The product is now ready for sale! 🎉</div>
+        <div class="text-xs text-[var(--muted-foreground)] mt-1">09:06 PM</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Input Bar -->
+  <form class="sticky-bottom glass flex items-center gap-2 px-2 py-2" style="backdrop-filter: blur(8px);">
+    <input type="text" placeholder="Type your message..." class="flex-1 px-4 py-3 rounded-full border border-[var(--border)] bg-[var(--popover)] text-[var(--popover-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] transition" />
+    <button type="submit" class="btn px-4 py-3 rounded-full flex items-center justify-center relative">
+      <i data-lucide="send"></i>
+    </button>
+  </form>
+
+  <script>
+    lucide.createIcons();
+    // Product preview collapse/expand
+    const productPreview = document.getElementById('productPreview');
+    const toggleProduct = document.getElementById('toggleProduct');
+    let collapsed = false;
+    toggleProduct.addEventListener('click', () => {
+      collapsed = !collapsed;
+      if (collapsed) {
+        productPreview.classList.remove('slide-up-enter');
+        productPreview.classList.add('slide-up-leave');
+        setTimeout(() => { productPreview.style.display = 'none'; }, 250);
+        toggleProduct.innerHTML = '<i data-lucide="chevron-down"></i>';
+        lucide.createIcons();
+      } else {
+        productPreview.style.display = '';
+        productPreview.classList.remove('slide-up-leave');
+        productPreview.classList.add('slide-up-enter');
+        toggleProduct.innerHTML = '<i data-lucide="chevron-up"></i>';
+        lucide.createIcons();
+      }
+    });
+    // Ripple effect for button
+    document.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        const ripple = document.createElement('span');
+        ripple.className = 'ripple';
+        ripple.style.width = ripple.style.height = Math.max(btn.offsetWidth, btn.offsetHeight) + 'px';
+        ripple.style.left = (e.offsetX - btn.offsetWidth / 2) + 'px';
+        ripple.style.top = (e.offsetY - btn.offsetHeight / 2) + 'px';
+        btn.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 400);
+      });
+    });
+  </script>
+</body>
+</html>

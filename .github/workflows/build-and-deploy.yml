@@ -1,0 +1,78 @@
+name: Build and Deploy to ECR
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: shoppollama
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-duration-seconds: 1200
+          
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        
+      - name: Create ECR repository if it doesn't exist
+        run: |
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} || \
+          aws ecr create-repository --repository-name ${{ env.ECR_REPOSITORY }} --region ${{ env.AWS_REGION }}
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Install Pulumi
+        uses: pulumi/setup-pulumi@v3
+        with:
+          version: 'latest'
+          
+      - name: Install Node.js dependencies
+        run: npm install
+        
+      - name: Configure Pulumi
+        run: |
+          pulumi login s3://shoppollama-pulumi-state
+          pulumi stack select prod
+          
+      - name: Update Pulumi with new ECR image
+        run: |
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          pulumi config set ecrImageUri "$IMAGE_URI"
+          
+      - name: Deploy infrastructure with Pulumi
+        run: pulumi up -y --skip-preview
+        
+      - name: Export outputs
+        run: |
+          pulumi stack output loadBalancerUrl > loadbalancer-url.txt
+          echo "Load Balancer URL: $(cat loadbalancer-url.txt)"

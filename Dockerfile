@@ -1,0 +1,72 @@
+# Build stage
+FROM elixir:1.15-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential npm git python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Prepare build directory
+WORKDIR /app
+
+# Install hex and rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+# Set environment for building
+ENV MIX_ENV=prod
+
+# Install dependencies
+COPY mix.exs mix.lock ./
+RUN mix deps.get --only prod
+RUN mkdir config
+COPY config/config.exs config/prod.exs config/${MIX_ENV}.exs config/
+RUN mix deps.compile
+
+# Install assets
+COPY assets/package.json assets/package-lock.json ./assets/
+RUN npm --prefix ./assets install
+COPY assets/ assets/
+RUN npm --prefix ./assets run deploy
+RUN mix assets.deploy
+
+# Copy source code
+COPY lib/ lib/
+COPY priv/ priv/
+
+# Compile application
+RUN mix compile
+
+# Prepare release
+COPY config/runtime.exs config/
+RUN mix release
+
+# Release stage
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 libncurses6 locales \
+    && rm -rf /var/lib/apt/lists/* \
+    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen
+
+ENV LANG=en_US.UTF-8
+
+WORKDIR /app
+
+# Create non-root user
+RUN groupadd -g 1000 app && \
+    useradd -u 1000 -g app app
+
+# Copy built application from builder stage
+COPY --from=builder --chown=app:app /app/_build/prod/rel/shoppollama ./
+
+# Change user
+USER app
+
+# Expose port
+EXPOSE 4000
+
+# Start the application
+CMD ["bin/shoppollama", "start"]

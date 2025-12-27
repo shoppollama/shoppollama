@@ -1,0 +1,16 @@
+name: shoppollama
+runtime: nodejs
+description: Shoppollama Phoenix application deployed to AWS with EC2 and ALB
+config:
+  aws:region:
+    description: The AWS region to deploy to
+    value: us-east-1
+  shoppollama:instanceType:
+    description: EC2 instance type
+    value: t3.medium
+  shoppollama:environment:
+    description: Environment (dev/prod)
+    value: prod
+  shoppollama:ecrImageUri:
+    description: ECR image URI for the application
+    value: ""

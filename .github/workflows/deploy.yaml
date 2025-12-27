@@ -1,0 +1,151 @@
+name: Deploy to AWS with Build Server
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  MIX_ENV: prod
+  UBUNTU_VERSION: ubuntu-20.04
+  DEPLOY_PATH: /var/www/shoppollama
+  BUILD_PATH: /home/ec2-user/shoppollama
+  DEPLOY_APP_NAME: shoppollama
+  DEPLOY_DAEMON_NAME: shoppollama
+  PULUMI_STACK_NAME: prod
+
+permissions:
+  contents: write
+  id-token: write # Required for Pulumi AWS authentication
+
+jobs:
+  deploy:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Pulumi
+      uses: pulumi/setup-pulumi@v3
+      with:
+        version: "latest"
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Get Pulumi Stack Outputs
+      id: pulumi-outputs
+      run: |
+        pulumi stack select ${{ env.PULUMI_STACK_NAME }}
+        LOAD_BALANCER_DNS=$(pulumi stack output loadBalancerDns)
+        BUILD_SERVER_IP=$(pulumi stack output buildServerPublicIp)
+        BUILD_SERVER_DNS=$(pulumi stack output buildServerPublicDns)
+        echo "load_balancer_dns=$LOAD_BALANCER_DNS" >> $GITHUB_OUTPUT
+        echo "build_server_ip=$BUILD_SERVER_IP" >> $GITHUB_OUTPUT
+        echo "build_server_dns=$BUILD_SERVER_DNS" >> $GITHUB_OUTPUT
+
+    - name: Install SSH key for Build Server
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_KEY }}
+        known_hosts: ${{ steps.pulumi-outputs.outputs.build_server_dns }}
+
+    - name: Add Build Server to Known Hosts
+      run: ssh-keyscan -H ${{ steps.pulumi-outputs.outputs.build_server_dns }} >> ~/.ssh/known_hosts
+
+    - name: Setup Build Server
+      uses: appleboy/ssh-action@v1.2.0
+      with:
+        host: ${{ steps.pulumi-outputs.outputs.build_server_dns }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          # Clone repository if not exists
+          if [ ! -d "${{ env.BUILD_PATH }}" ]; then
+            git clone https://github.com/${{ github.repository }}.git ${{ env.BUILD_PATH }}
+          else
+            cd ${{ env.BUILD_PATH }}
+            git fetch origin
+            git checkout main
+            git pull origin main
+          fi
+          
+          cd ${{ env.BUILD_PATH }}
+          
+          # Install dependencies
+          mix deps.get --only-prod
+          mix compile
+
+    - name: Build Application on Build Server
+      uses: appleboy/ssh-action@v1.2.0
+      with:
+        host: ${{ steps.pulumi-outputs.outputs.build_server_dns }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cd ${{ env.BUILD_PATH }}
+          
+          # Compile assets
+          mix assets.deploy
+          
+          # Build release
+          mix release --overwrite
+          
+          echo "✅ Build complete on build server!"
+
+    - name: Deploy to Target Servers
+      uses: appleboy/ssh-action@v1.2.0
+      with:
+        host: ${{ steps.pulumi-outputs.outputs.build_server_dns }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cd ${{ env.BUILD_PATH }}
+          
+          # Get target server instances from Auto Scaling Group
+          TARGET_INSTANCES=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(Tags[?Key==\`Name\`].Value, \`shoppollama\`)].AutoScalingGroupName' --output text) --query 'AutoScalingGroups[0].Instances[?HealthStatus==\`Healthy\`].InstanceId' --output text)
+          
+          for INSTANCE_ID in $TARGET_INSTANCES; do
+            echo "🚀 Deploying to instance: $INSTANCE_ID"
+            
+            # Get instance IP
+            INSTANCE_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+            
+            # Copy release to target server
+            rsync -avz --delete _build/prod/rel/ ${{ secrets.SSH_USER }}@$INSTANCE_IP:${{ env.DEPLOY_PATH }}/_build/prod/rel/
+            
+            # Setup and restart on target server
+            ssh ${{ secrets.SSH_USER }}@$INSTANCE_IP "cd ${{ env.DEPLOY_PATH }} && /home/ec2-user/receive-deploy.sh"
+            
+            echo "✅ Deployment to $INSTANCE_IP complete!"
+          done
+
+    - name: Update Caddy Configuration
+      uses: appleboy/ssh-action@v1.2.0
+      with:
+        host: ${{ steps.pulumi-outputs.outputs.build_server_dns }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          # Get target server instances
+          TARGET_INSTANCES=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(Tags[?Key==\`Name\`].Value, \`shoppollama\`)].AutoScalingGroupName' --output text) --query 'AutoScalingGroups[0].Instances[?HealthStatus==\`Healthy\`].InstanceId' --output text)
+          
+          for INSTANCE_ID in $TARGET_INSTANCES; do
+            INSTANCE_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+            
+            # Update Caddyfile with actual domain
+            ssh ${{ secrets.SSH_USER }}@$INSTANCE_IP "sudo sed -i 's/shoppollama.yourdomain.com/${{ steps.pulumi-outputs.outputs.load_balancer_dns }}/' /etc/caddy/Caddyfile"
+            ssh ${{ secrets.SSH_USER }}@$INSTANCE_IP "sudo systemctl reload caddy"
+          done
+
+    - name: Deployment Summary
+      run: |
+        echo "🚀 Deployment Complete!"
+        echo "🌐 Load Balancer URL: http://${{ steps.pulumi-outputs.outputs.load_balancer_dns }}"
+        echo "🔧 Build Server: ${{ steps.pulumi-outputs.outputs.build_server_dns }}"
+        echo "📱 Application built on dedicated build server and deployed to target instances"

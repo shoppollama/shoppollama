@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Superhuman Split Job Tool</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:400,500,600&display=swap" />
+  <link rel="stylesheet" href="design_iterations/superhuman_job_theme_1.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flowbite@2.0.0/dist/flowbite.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .job-row {
+      transition: background 0.18s, box-shadow 0.18s, transform 0.2s;
+      cursor: pointer;
+    }
+    .job-row.selected, .job-row:focus {
+      background: var(--primary) !important;
+      color: var(--primary-foreground) !important;
+      transform: translateX(8px) scale(1.01);
+      box-shadow: var(--shadow-sm) !important;
+    }
+    .job-row:hover:not(.selected) {
+      background: var(--muted) !important;
+      box-shadow: var(--shadow-2xs) !important;
+    }
+    .job-detail-panel {
+      animation: slideInRight 0.3s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(16px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .filter-dropdown {
+      transition: transform 0.18s, opacity 0.18s;
+      transform: scale(0.95);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .filter-dropdown.open {
+      transform: scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .apply-btn {
+      transition: transform 0.18s cubic-bezier(.4,0,.2,1);
+    }
+    .apply-btn:active {
+      transform: scale(0.98);
+    }
+    .apply-btn:hover {
+      transform: scale(1.04);
+      box-shadow: var(--shadow-xs);
+    }
+    .search-input:focus {
+      box-shadow: 0 0 0 2px var(--ring);
+      border-color: var(--ring);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)]" style="font-family: var(--font-sans);">
+  <!-- Header Bar -->
+  <header class="flex items-center px-8 py-4 border-b border-[var(--border)] bg-[var(--background)] gap-4">
+    <button class="mr-2 text-xl text-[var(--muted-foreground)] focus:outline-none">
+      <i data-lucide="menu"></i>
+    </button>
+    <h1 class="text-lg font-semibold tracking-tight mr-6">Jobs</h1>
+    <div class="flex-1 flex items-center gap-2 max-w-xl">
+      <input type="text" placeholder="Search jobs, companies..." class="search-input w-full px-4 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--input)] focus:outline-none transition" />
+      <select class="px-3 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--input)] text-sm focus:outline-none">
+        <option value="">All Types</option>
+        <option value="remote">Remote</option>
+        <option value="hybrid">Hybrid</option>
+        <option value="onsite">Onsite</option>
+      </select>
+      <select class="px-3 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--input)] text-sm focus:outline-none">
+        <option value="">All Locations</option>
+        <option value="sf">San Francisco</option>
+        <option value="nyc">New York</option>
+        <option value="lon">London</option>
+        <option value="remote">Remote</option>
+      </select>
+    </div>
+    <button class="ml-4 text-[var(--muted-foreground)]">
+      <i data-lucide="user"></i>
+    </button>
+  </header>
+
+  <!-- Main Split Area -->
+  <main class="flex-1 flex min-h-0">
+    <!-- Job List (Left) -->
+    <section class="w-full max-w-xl flex flex-col border-r border-[var(--border)] bg-[var(--sidebar)] overflow-y-auto" tabindex="0">
+      <ul class="divide-y divide-[var(--border)]">
+        <li class="job-row selected flex items-center px-6 py-4 gap-4 focus:outline-none" tabindex="0">
+          <div class="flex flex-col flex-1">
+            <span class="font-semibold">Acme Corp</span>
+            <span class="text-sm text-[var(--muted-foreground)]">Senior Product Designer</span>
+            <span class="text-xs text-[var(--muted-foreground)] mt-1">San Francisco • Remote</span>
+          </div>
+          <span class="inline-block px-2 py-1 text-xs rounded bg-[var(--primary)] text-[var(--primary-foreground)]">Remote</span>
+        </li>
+        <li class="job-row flex items-center px-6 py-4 gap-4 focus:outline-none" tabindex="0">
+          <div class="flex flex-col flex-1">
+            <span class="font-semibold">Globex</span>
+            <span class="text-sm text-[var(--muted-foreground)]">Frontend Engineer</span>
+            <span class="text-xs text-[var(--muted-foreground)] mt-1">New York • Hybrid</span>
+          </div>
+          <span class="inline-block px-2 py-1 text-xs rounded bg-[var(--accent)] text-[var(--accent-foreground)]">Hybrid</span>
+        </li>
+        <li class="job-row flex items-center px-6 py-4 gap-4 focus:outline-none" tabindex="0">
+          <div class="flex flex-col flex-1">
+            <span class="font-semibold">Initech</span>
+            <span class="text-sm text-[var(--muted-foreground)]">Backend Developer</span>
+            <span class="text-xs text-[var(--muted-foreground)] mt-1">London • Onsite</span>
+          </div>
+          <span class="inline-block px-2 py-1 text-xs rounded bg-[var(--muted)] text-[var(--foreground)]">Onsite</span>
+        </li>
+        <li class="job-row flex items-center px-6 py-4 gap-4 focus:outline-none" tabindex="0">
+          <div class="flex flex-col flex-1">
+            <span class="font-semibold">Umbrella Inc</span>
+            <span class="text-sm text-[var(--muted-foreground)]">AI Researcher</span>
+            <span class="text-xs text-[var(--muted-foreground)] mt-1">Remote</span>
+          </div>
+          <span class="inline-block px-2 py-1 text-xs rounded bg-[var(--primary)] text-[var(--primary-foreground)]">Remote</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Job Details (Right) -->
+    <aside class="flex-1 min-w-0 flex flex-col bg-[var(--background)] p-10 job-detail-panel">
+      <div class="flex items-center gap-4 mb-6">
+        <img src="https://placehold.co/64x64" alt="Company Logo" class="rounded-[var(--radius-md)] w-16 h-16 object-cover border border-[var(--border)]" />
+        <div>
+          <h2 class="text-2xl font-bold mb-1">Senior Product Designer</h2>
+          <div class="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+            <span>Acme Corp</span>
+            <span>•</span>
+            <span>San Francisco</span>
+            <span>•</span>
+            <span class="inline-block px-2 py-1 rounded bg-[var(--primary)] text-[var(--primary-foreground)] text-xs">Remote</span>
+          </div>
+        </div>
+      </div>
+      <div class="mb-8 text-[var(--foreground)]">
+        <p class="mb-4">We’re looking for a Senior Product Designer to join our fast-growing team at Acme Corp. You’ll work closely with product, engineering, and research to craft delightful user experiences for our next-generation platform.</p>
+        <ul class="list-disc pl-6 mb-4">
+          <li>Lead design projects from ideation to launch</li>
+          <li>Collaborate with cross-functional teams</li>
+          <li>Shape the future of our design system</li>
+        </ul>
+        <p>Requirements: 4+ years of product design experience, strong portfolio, Figma/Sketch proficiency, and a passion for user-centric design.</p>
+      </div>
+      <button class="apply-btn px-6 py-3 rounded-[var(--radius-md)] bg-[var(--primary)] text-[var(--primary-foreground)] font-semibold text-lg shadow hover:shadow-md transition">Apply Now</button>
+    </aside>
+  </main>
+  <script>
+    lucide.createIcons();
+    // Keyboard navigation for job list (demo only, not full logic)
+    const jobRows = document.querySelectorAll('.job-row');
+    let selectedIdx = 0;
+    function updateSelection(idx) {
+      jobRows.forEach((row, i) => {
+        row.classList.toggle('selected', i === idx);
+        if (i === idx) row.focus();
+      });
+    }
+    document.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'ArrowDown'].includes(e.key)) {
+        if (e.key === 'ArrowUp') selectedIdx = Math.max(0, selectedIdx - 1);
+        if (e.key === 'ArrowDown') selectedIdx = Math.min(jobRows.length - 1, selectedIdx + 1);
+        updateSelection(selectedIdx);
+        e.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>

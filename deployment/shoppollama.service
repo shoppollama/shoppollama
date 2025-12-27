@@ -1,0 +1,17 @@
+[Unit]
+Description=Shoppollama Phoenix App
+
+[Service]
+User=root
+EnvironmentFile=/var/www/shoppollama/.env
+Environment=LANG=en_US.utf8
+WorkingDirectory=/var/www/shoppollama/
+ExecStart=/var/www/shoppollama/_build/prod/rel/shoppollama/bin/shoppollama start
+ExecStop=/var/www/shoppollama/_build/prod/rel/shoppollama/bin/shoppollama stop
+KillMode=process
+Restart=on-failure
+LimitNOFILE=65535
+SyslogIdentifier=shoppollama
+
+[Install]
+WantedBy=multi-user.target
