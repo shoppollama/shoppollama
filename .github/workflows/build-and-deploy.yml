@@ -83,6 +83,8 @@ jobs:
           pulumi up -y --skip-preview
         
       - name: Export outputs
+        env:
+          PULUMI_CONFIG_PASSPHRASE: 0H2b7gKVCHE16o+o90FTvnZxMQVIww2Zq3VQagwwe1E=
         run: |
           pulumi stack output loadBalancerUrl > loadbalancer-url.txt
           echo "Load Balancer URL: $(cat loadbalancer-url.txt)"
