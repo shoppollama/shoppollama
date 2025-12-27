@@ -12,7 +12,7 @@ const vpc = aws.ec2.getVpc({
 
 // Use existing Internet Gateway
 const internetGateway = aws.ec2.getInternetGateway({
-    internetGatewayId: "igw-0a012057cc87d129c",
+    id: "igw-0a012057cc87d129c",
 });
 
 // Use existing subnets
@@ -26,7 +26,7 @@ const publicSubnet2 = aws.ec2.getSubnet({
 
 // Use existing route table
 const routeTable = aws.ec2.getRouteTable({
-    routeTableId: "rtb-06a4a2bdb42621f46",
+    id: "rtb-06a4a2bdb42621f46",
 });
 
 // Use existing route table associations - skip as they're already associated
@@ -177,7 +177,7 @@ const instance = new aws.ec2.Instance("shoppollama-instance", {
     vpcSecurityGroupIds: [ec2SecurityGroup.id],
     iamInstanceProfile: instanceProfile,
     userData: Buffer.from(userData).toString("base64") as string,
-    keyName: keyPair.then(k => k.keyName),
+    keyName: keyPair.keyName,
     tags: {
         Name: "shoppollama",
         Environment: environment,

@@ -1,0 +1,3 @@
+encryptionsalt: v1:qeOkt3BGEx4=:v1:2MZHPqXuoVFjeVQ+:kcpy5S3hg5BNLtVsOQN/pndNmBkz3Q==
+config:
+  shoppollama:ecrImageUri: 279714322890.dkr.ecr.us-east-1.amazonaws.com/shoppollama:ded4b1b3fba962e6d09412df54283d463bb566d0

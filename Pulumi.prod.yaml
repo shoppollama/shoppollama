@@ -1,0 +1,3 @@
+config:
+  shoppollama:ecrImageUri: 279714322890.dkr.ecr.us-east-1.amazonaws.com/shoppollama:fix-origin-check
+encryptionsalt: v1:kTDgGA8AraY=:v1:YOzf0Cr+KKDR6dVC:tw3Wld7WYgOY9sRWsRbaIYSFj81tiA==
