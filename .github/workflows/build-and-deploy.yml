@@ -76,11 +76,11 @@ jobs:
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
           pulumi config set ecrImageUri "$IMAGE_URI"
           
-          # Refresh stack state
+          # Refresh stack state to clear any pending operations
           pulumi refresh -y --skip-preview
           
-          # Update only the launch template with new image
-          pulumi up -y --skip-preview --target urn:pulumi:prod::shoppollama::aws:autoscaling/group:Group::shoppollama-asg::aws:autoscaling/launchTemplate:LaunchTemplate::shoppollama-lt
+          # Update the launch template with new image
+          pulumi up -y --skip-preview --target urn:pulumi:prod::shoppollama::aws:ec2:launchTemplate:LaunchTemplate::shoppollama-launch-template
         
       - name: Export outputs
         run: |
