@@ -49,6 +49,8 @@ jobs:
           version: latest
 
       - name: Configure Pulumi
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_PASSPHRASE }}
         run: |
           # Login to Pulumi
           pulumi login s3://shoppollama-pulumi-state
