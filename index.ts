@@ -11,7 +11,7 @@ const ecrImageUri = config.require("ecrImageUri");
 const keyPair = new aws.ec2.KeyPair("shoppollama-key", {
     keyName: "shoppollama-key",
     publicKey: `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDZEg3E41liKQGzWuP9j6SVXHeB6XMBKv8uC8+ma5Wld1iikboGDoVUY7BFw/Rp9SKdYiPOGwgH28HkcZRSZkKKn2sIIOluj2eRnn7s2AZaNiUS9jblR3Xg4VKfhYPzP/m40s18n+wO4fGEEsqE6KDx7w9fsOUAHo8iMBajD5JbGMUuDmrV1nwnRsnVJ21+xH6fVChBgzQKpvI6b7cjDXhzM9xPreqz1PqFV8+XLxDF0MBtFm9GKNcB6wiPeCSOj+MnG8eI919lHsW3OtRjNeTk45b1K/uaXIwFgEm/qBnhfIGRh1Wk46CYERIqECHFJ6bFPmnqF3O1nNChRiC8C2mVe9FWwdTE1/riNs+goMNtebb1s1lgkXq7hgRBUiqGoZp/wtRfz76fsAa+LBiD8xTJReiW8mJsh4YMoU/02f/Q8gohy6JZ+0fRr0SacMXcCLAydg5ZAVJXTPJB/M32mAptubJzeL3VvePu5kS4YyHmJXfQ1AbXBAWK8Va5IeF3L0INH2SKXALVc+kAyBNqXmMY7dXRY7hCvHTy2goFquDKDa3mhUi8H1NqjrRNJN0dM3H/2VXEqEUGKYXpE+1WwwuN7F/+obM3TCaCZD9yCHcAuMXYUtd9GwB7B7dgnBAuQHfVxhACotARBmb/HwG9VVedzpOBwuOoy/kDXUaeNteksQ== shoppollama@pulumi`
-});
+}, { import: "shoppollama-key" });
 
 // Create S3 bucket for Mix releases
 const releasesBucket = new aws.s3.Bucket("shoppollama-releases", {
@@ -27,10 +27,14 @@ const vpc = aws.ec2.getVpc({
     id: "vpc-083d38d951d2954e8",
 });
 
-// Use existing Internet Gateway
+// Create Internet Gateway
 const internetGateway = new aws.ec2.InternetGateway("shoppollama-igw", {
     vpcId: vpc.then(v => v.id),
-}, { import: "igw-0a012057cc87d129c" });
+    tags: {
+        Name: "shoppollama-igw",
+        Environment: environment,
+    },
+});
 
 // Create Public Subnets
 const publicSubnet1 = aws.ec2.getSubnet({

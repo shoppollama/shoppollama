@@ -70,17 +70,17 @@ jobs:
           pulumi cancel -s prod || true
           
           # Select existing stack
-          if ! pulumi stack select prod; then
-            pulumi stack init prod
-          fi
+          pulumi stack select prod
           
           # Update ECR image configuration
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
           pulumi config set ecrImageUri "$IMAGE_URI"
-          pulumi config set vpcId "vpc-083d38d951d2954e8"
           
-          # Deploy infrastructure
-          pulumi up -y --skip-preview
+          # Refresh stack state
+          pulumi refresh -y --skip-preview
+          
+          # Update only the launch template with new image
+          pulumi up -y --skip-preview --target urn:pulumi:prod::shoppollama::aws:autoscaling/group:Group::shoppollama-asg::aws:autoscaling/launchTemplate:LaunchTemplate::shoppollama-lt
         
       - name: Export outputs
         run: |
