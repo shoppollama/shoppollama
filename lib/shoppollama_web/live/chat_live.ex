@@ -10,6 +10,19 @@ defmodule ShoppollamaWeb.ChatLive do
   alias Shoppollama.OllamaClient
   require Logger
 
+  # Get the base URL for product pages (handles both dev and prod)
+  defp get_base_url do
+    host = System.get_env("PHX_HOST", "localhost")
+    port = System.get_env("PORT", "4000")
+    scheme = if host == "localhost", do: "http", else: "http"
+    
+    if host == "localhost" do
+      "#{scheme}://#{host}:#{port}"
+    else
+      "#{scheme}://#{host}:#{port}"
+    end
+  end
+
   # S3 presigned URL generation
   defp presign_upload(entry, socket) do
     uploads = socket.assigns.uploads
@@ -235,13 +248,13 @@ defmodule ShoppollamaWeb.ChatLive do
            name: product_result.verified_name,
            price: "$#{price.unit_amount / 100}",
            id: product.id,
-           link: "http://localhost:4000/p/#{product.id}",
+           link: "#{get_base_url()}/p/#{product.id}",
            stripe_link: "https://dashboard.stripe.com/products/#{product.id}",
            image_url: final_image_url,
            description: product.description || "Product created by ShoppOllama AI assistant",
            category: product.metadata["product_type"] || "General",
            stock: "10",
-           url: "http://localhost:4000/p/#{product.id}",
+           url: "#{get_base_url()}/p/#{product.id}",
            created_by_message_id: user_message_id
          })
          |> then(fn s ->
@@ -471,7 +484,7 @@ defmodule ShoppollamaWeb.ChatLive do
     - Product ID: #{product.id}
     - Price ID: #{price.id}
     - Stripe Product Link: https://dashboard.stripe.com/products/#{product.id}
-    - Product Page Link: http://localhost:4000/p/#{product.id}
+    - Product Page Link: #{get_base_url()}/p/#{product.id}
     - Original Request: "#{original_message}"
 
     CRITICAL: You MUST preserve the EXACT case of the product name from the original request. If the user wrote "dreams of my papa" in lowercase, you MUST write "dreams of my papa" in lowercase - do NOT capitalize it to "Dreams of My Papa".
@@ -481,7 +494,7 @@ defmodule ShoppollamaWeb.ChatLive do
     2. Include the exact product name as written in the original request (preserve case exactly)
     3. Include the exact text "Price: $#{price_dollars}"
     4. Include the exact text "Stripe Product Link: https://dashboard.stripe.com/products/#{product.id}"
-    5. Include the exact text "Product Page Link: http://localhost:4000/p/#{product.id}"
+    5. Include the exact text "Product Page Link: #{get_base_url()}/p/#{product.id}"
     6. Include any timing details from the original request (like "next month", "coming soon", etc.)
 
     Keep it concise. Preserve exact case of product name from original request.
@@ -497,7 +510,7 @@ defmodule ShoppollamaWeb.ChatLive do
     * Price: $#{price_dollars}
     * Product ID: #{product.id}
     * Stripe Product Link: https://dashboard.stripe.com/products/#{product.id}
-    * Product Page Link: http://localhost:4000/p/#{product.id}
+    * Product Page Link: #{get_base_url()}/p/#{product.id}
     """
     
     # Add timing info if present in original message
@@ -690,7 +703,7 @@ defmodule ShoppollamaWeb.ChatLive do
 
     🔗 **Product ID:** `#{product.id}`
     💰 **Price:** $#{price_dollars}
-    🌐 **Live Page:** http://localhost:4000/p/#{product.id}
+    🌐 **Live Page:** #{get_base_url()}/p/#{product.id}
     🛒 **Ready for customers!**
     """
   end
