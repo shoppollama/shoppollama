@@ -61,11 +61,12 @@ services:
       - PORT=4000
       - MIX_ENV=prod
       - PHX_SERVER=true
-      - PHX_HOST=localhost
+      - PHX_HOST=__PUBLIC_IP__
       - DATABASE_PATH=/app/shoppollama.db
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_TIMEOUT=180000
       - SECRET_KEY_BASE=__SECRET_KEY_BASE__
+      - STRIPE_SECRET_KEY=__STRIPE_SECRET_KEY__
     volumes:
       - ./data:/app/data
       - ./shoppollama.db:/app/shoppollama.db
@@ -97,7 +98,7 @@ echo "⏳ Waiting for Ollama to start..."
 sleep 30
 
 # Pull a model (you can change this to your preferred model)
-docker-compose exec ollama ollama pull llama3.2:3b
+docker-compose exec ollama ollama pull qwen2:1.5b
 
 echo "✅ Application and Ollama deployed!"
 echo "🔗 App URL: http://localhost:4000"
@@ -111,10 +112,14 @@ EOF
 # Generate a secret key base
 SECRET_KEY_BASE=$(openssl rand -base64 64 | tr -d '\n')
 
+# Get Stripe key from environment
+STRIPE_KEY="${STRIPE_SECRET_KEY:?STRIPE_SECRET_KEY environment variable is required}"
+
 # Replace placeholders with actual values
 sed -i.bak "s|__ECR_IMAGE_URI__|$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g" user-data-t4g.sh
 sed -i.bak "s|__ECR_REGISTRY__|$ECR_REGISTRY|g" user-data-t4g.sh
 sed -i.bak "s|__SECRET_KEY_BASE__|$SECRET_KEY_BASE|g" user-data-t4g.sh
+sed -i.bak "s|__STRIPE_SECRET_KEY__|$STRIPE_KEY|g" user-data-t4g.sh
 
 # Get latest Amazon Linux 2 ARM64 AMI (for t4g.large)
 AMI_ID=$(aws ec2 describe-images --owners amazon --filters "Name=name,Values=amzn2-ami-hvm-*-arm64-gp2" "Name=virtualization-type,Values=hvm" --query "Images | sort_by(@, &CreationDate) | [-1].ImageId" --output text)
@@ -159,8 +164,17 @@ echo "🔗 Application URL: http://$PUBLIC_IP:4000"
 echo "🤖 Ollama API: http://$PUBLIC_IP:11434"
 echo ""
 echo "⚠️  Note: It may take 3-5 minutes for everything to start."
-echo "📝 The instance will automatically pull the llama2 model."
+echo "📝 The instance will automatically pull the qwen2:1.5b model."
 echo ""
+echo "🔧 Updating PHX_HOST with public IP..."
+
+# Wait for SSH to be available
+sleep 60
+
+# Update PHX_HOST in docker-compose.yml on the instance
+ssh -i shoppollama-key.pem -o StrictHostKeyChecking=no ec2-user@$PUBLIC_IP "cd /var/www/shoppollama && sudo sed -i 's|PHX_HOST=__PUBLIC_IP__|PHX_HOST=$PUBLIC_IP|g' docker-compose.yml && sudo sed -i 's|./shoppollama.db:/app/shoppollama.db|./db:/app/db|g' docker-compose.yml && sudo sed -i 's|DATABASE_PATH=/app/shoppollama.db|DATABASE_PATH=/app/db/shoppollama.db|g' docker-compose.yml && sudo mkdir -p db && sudo chmod 777 db && docker-compose down && docker-compose up -d"
+
+echo "✅ PHX_HOST updated to $PUBLIC_IP"
 
 # Cleanup
-rm -f user-data-t4g.sh
+rm -f user-data-t4g.sh user-data-t4g.sh.bak
