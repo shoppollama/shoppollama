@@ -1,57 +1,47 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
+import * as cloudflare from "@pulumi/cloudflare";
 
-const config = new pulumi.Config();
-const environment = config.get("environment") || "prod";
-const ecrImageUri = config.require("ecrImageUri");
+// Existing EC2 instance details (deployed via deploy-t4g-large.sh)
+const EXISTING_INSTANCE_ID = "i-05404bca03804ba88";
+const EXISTING_INSTANCE_PUBLIC_IP = "44.223.109.12";
+const EXISTING_INSTANCE_PRIVATE_IP = "10.0.1.105"; // Private IP for ALB target group
+const DOMAIN_NAME = "shoppollama.xyz";
 
-// Use existing VPC
+// Use existing VPC and subnets
+const EXISTING_VPC_ID = "vpc-083d38d951d2954e8";
+const EXISTING_SUBNET_1 = "subnet-099485b1570792810"; // us-east-1a
+const EXISTING_SUBNET_2 = "subnet-0f4bd71ebf91a16c5"; // us-east-1b
+
+// Reference existing VPC
 const vpc = aws.ec2.getVpc({
-    id: "vpc-083d38d951d2954e8",
+    id: EXISTING_VPC_ID,
 });
 
-// Use existing Internet Gateway
-const internetGateway = aws.ec2.getInternetGateway({
-    internetGatewayId: "igw-0a012057cc87d129c",
-});
-
-// Use existing subnets
+// Reference existing subnets
 const publicSubnet1 = aws.ec2.getSubnet({
-    id: "subnet-099485b1570792810",
+    id: EXISTING_SUBNET_1,
 });
 
 const publicSubnet2 = aws.ec2.getSubnet({
-    id: "subnet-0f4bd71ebf91a16c5",
+    id: EXISTING_SUBNET_2,
 });
 
-// Use existing route table
-const routeTable = aws.ec2.getRouteTable({
-    routeTableId: "rtb-06a4a2bdb42621f46",
-});
-
-// Use existing route table associations - skip as they're already associated
-
-// Create Security Group for EC2
-const ec2SecurityGroup = new aws.ec2.SecurityGroup("shoppollama-ec2-sg", {
+// Security group for ALB
+const albSecurityGroup = new aws.ec2.SecurityGroup("shoppollama-alb-sg", {
     vpcId: vpc.then(v => v.id),
     ingress: [
         {
             protocol: "tcp",
-            fromPort: 4000,
-            toPort: 4000,
-            cidrBlocks: ["0.0.0.0/0"], // Allow from anywhere
-        },
-        {
-            protocol: "tcp",
-            fromPort: 22,
-            toPort: 22,
-            cidrBlocks: ["0.0.0.0/0"], // SSH access
-        },
-        {
-            protocol: "tcp",
             fromPort: 80,
             toPort: 80,
-            cidrBlocks: ["0.0.0.0/0"], // HTTP for ALB
+            cidrBlocks: ["0.0.0.0/0"],
+        },
+        {
+            protocol: "tcp",
+            fromPort: 443,
+            toPort: 443,
+            cidrBlocks: ["0.0.0.0/0"],
         },
     ],
     egress: [{
@@ -61,144 +51,94 @@ const ec2SecurityGroup = new aws.ec2.SecurityGroup("shoppollama-ec2-sg", {
         cidrBlocks: ["0.0.0.0/0"],
     }],
     tags: {
-        Name: "shoppollama-ec2-sg",
-        Environment: environment,
+        Name: "shoppollama-alb-sg",
     },
 });
 
-// Create IAM role for EC2
-const ec2Role = new aws.iam.Role("shoppollama-ec2-role", {
-    assumeRolePolicy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [{
-            Action: "sts:AssumeRole",
-            Effect: "Allow",
-            Principal: {
-                Service: "ec2.amazonaws.com",
-            },
-        }],
-    }),
-});
-
-// Attach SSM policy for session manager access
-const ssmPolicy = new aws.iam.RolePolicyAttachment("shoppollama-ssm-policy", {
-    role: ec2Role.name,
-    policyArn: aws.iam.ManagedPolicies.AmazonSSMManagedInstanceCore,
-});
-
-// Attach ECR read-only policy for pulling images
-const ecrPolicy = new aws.iam.RolePolicyAttachment("shoppollama-ecr-policy", {
-    role: ec2Role.name,
-    policyArn: aws.iam.ManagedPolicies.AmazonEC2ContainerRegistryReadOnly,
-});
-
-// Create Instance Profile
-const instanceProfile = new aws.iam.InstanceProfile("shoppollama-instance-profile", {
-    role: ec2Role.name,
-});
-
-// Create EC2 Key Pair for SSH access
-const keyPair = new aws.ec2.KeyPair("shoppollama-key", {
-    keyName: "shoppollama-key",
-    publicKey: `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDZEg3E41liKQGzWuP9j6SVXHeB6XMBKv8uC8+ma5Wld1iikboGDoVUY7BFw/Rp9SKdYiPOGwgH28HkcZRSZkKKn2sIIOluj2eRnn7s2AZaNiUS9jblR3Xg4VKfhYPzP/m40s18n+wO4fGEEsqE6KDx7w9fsOUAHo8iMBajD5JbGMUuDmrV1nwnRsnVJ21+xH6fVChBgzQKpvI6b7cjDXhzM9xPreqz1PqFV8+XLxDF0MBtFm9GKNcB6wiPeCSOj+MnG8eI919lHsW3OtRjNeTk45b1K/uaXIwFgEm/qBnhfIGRh1Wk46CYERIqECHFJ6bFPmnqF3O1nNChRiC8C2mVe9FWwdTE1/riNs+goMNtebb1s1lgkXq7hgRBUiqGoZp/wtRfz76fsAa+LBiD8xTJReiW8mJsh4YMoU/02f/Q8gohy6JZ+0fRr0SacMXcCLAydg5ZAVJXTPJB/M32mAptubJzeL3VvePu5kS4YyHmJXfQ1AbXBAWK8Va5IeF3L0INH2SKXALVc+kAyBNqXmMY7dXRY7hCvHTy2goFquDKDa3mhUi8H1NqjrRNJN0dM3H/2VXEqEUGKYXpE+1WwwuN7F/+obM3TCaCZD9yCHcAuMXYUtd9GwB7B7dgnBAuQHfVxhACotARBmb/HwG9VVedzpOBwuOoy/kDXUaeNteksQ== shoppollama@pulumi`
-});
-
-// User data script for EC2 instance
-const userData = `#!/bin/bash
-yum update -y
-
-# Install AWS CLI
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip awscliv2.zip
-sudo ./aws/install
-
-# Install docker-compose
-curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-\$(uname -s)-\$(uname -m)" -o /usr/local/bin/docker-compose
-chmod +x /usr/local/bin/docker-compose
-
-# Install Docker
-yum install -y docker
-systemctl start docker
-systemctl enable docker
-usermod -a -G docker ec2-user
-
-# Create app directory
-mkdir -p /var/www/shoppollama
-cd /var/www/shoppollama
-
-# Create docker-compose.yml
-cat > docker-compose.yml << 'EOF'
-version: '3.8'
-services:
-  shoppollama:
-    image: ${ecrImageUri}
-    ports:
-      - "4000:4000"
-    restart: unless-stopped
-    environment:
-      - PORT=4000
-      - MIX_ENV=prod
-      - DATABASE_PATH=/app/shoppollama.db
-    volumes:
-      - ./data:/app/data
-EOF
-
-# Create startup script
-cat > start.sh << 'EOF'
-#!/bin/bash
-cd /var/www/shoppollama
-
-# Create data directory
-mkdir -p data
-
-# Login to ECR and pull the image
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${ecrImageUri.split('/')[0]}
-
-docker-compose down
-docker-compose up -d
-EOF
-
-chmod +x start.sh
-./start.sh
-
-echo "✅ Application deployed!"
-`;
-
-// Create single EC2 instance
-const instance = new aws.ec2.Instance("shoppollama-instance", {
-    instanceType: "t3.medium",
-    subnetId: publicSubnet1.then(s => s.id),
-    ami: aws.ec2.getAmi({
-        filters: [
-            { name: "name", values: ["amzn2-ami-hvm-*-x86_64-gp2"] },
-            { name: "virtualization-type", values: ["hvm"] },
-        ],
-        mostRecent: true,
-    }).then((ami: aws.GetAmiResult) => ami.id),
-    vpcSecurityGroupIds: [ec2SecurityGroup.id],
-    iamInstanceProfile: instanceProfile,
-    userData: Buffer.from(userData).toString("base64") as string,
-    keyName: keyPair.keyName,
+// Create Application Load Balancer
+const alb = new aws.lb.LoadBalancer("shoppollama-alb", {
+    internal: false,
+    loadBalancerType: "application",
+    securityGroups: [albSecurityGroup.id],
+    subnets: [publicSubnet1.then(s => s.id), publicSubnet2.then(s => s.id)],
+    enableDeletionProtection: false,
     tags: {
-        Name: "shoppollama",
-        Environment: environment,
+        Name: "shoppollama-alb",
     },
 });
 
-// Create Elastic IP
-const eip = new aws.ec2.Eip("shoppollama-eip", {
-    instance: instance.id,
-    vpc: true,
-    tags: {
-        Name: "shoppollama-eip",
-        Environment: environment,
+// Create target group pointing to existing EC2 instance IP
+const targetGroup = new aws.lb.TargetGroup("shoppollama-tg", {
+    port: 4000,
+    protocol: "HTTP",
+    targetType: "ip",
+    vpcId: vpc.then(v => v.id),
+    healthCheck: {
+        enabled: true,
+        path: "/",
+        port: "4000",
+        protocol: "HTTP",
+        healthyThreshold: 2,
+        unhealthyThreshold: 3,
+        timeout: 5,
+        interval: 30,
     },
+    tags: {
+        Name: "shoppollama-tg",
+    },
+});
+
+// Register existing EC2 instance IP as target
+const targetGroupAttachment = new aws.lb.TargetGroupAttachment("shoppollama-tg-attachment", {
+    targetGroupArn: targetGroup.arn,
+    targetId: EXISTING_INSTANCE_PRIVATE_IP,
+    port: 4000,
+});
+
+// HTTP listener - redirect to HTTPS or forward to target
+const httpListener = new aws.lb.Listener("shoppollama-http-listener", {
+    loadBalancerArn: alb.arn,
+    port: 80,
+    protocol: "HTTP",
+    defaultActions: [{
+        type: "forward",
+        targetGroupArn: targetGroup.arn,
+    }],
+});
+
+// Get Cloudflare zone using filter
+const cloudflareZone = cloudflare.getZone({
+    filter: {
+        name: DOMAIN_NAME,
+    },
+});
+
+// Create/Update Cloudflare DNS record to point to ALB
+const dnsRecord = new cloudflare.Record("shoppollama-dns", {
+    zoneId: cloudflareZone.then(zone => zone.id),
+    name: "@",
+    type: "CNAME",
+    content: alb.dnsName,
+    proxied: true,
+    ttl: 1, // Auto TTL when proxied
+});
+
+// Create www subdomain
+const wwwRecord = new cloudflare.Record("shoppollama-www-dns", {
+    zoneId: cloudflareZone.then(zone => zone.id),
+    name: "www",
+    type: "CNAME",
+    content: alb.dnsName,
+    proxied: true,
+    ttl: 1,
 });
 
 // Export outputs
-export const instancePublicIp = instance.publicIp;
-export const instancePublicDns = instance.publicDns;
-export const instanceId = instance.id;
-export const applicationUrl = pulumi.interpolate`http://${instance.publicIp}:4000`;
 export const vpcId = vpc.then(v => v.id);
-export const instanceProfileArn = instanceProfile.arn;
+export const albDnsName = alb.dnsName;
+export const albArn = alb.arn;
+export const targetGroupArn = targetGroup.arn;
+export const existingInstanceIp = EXISTING_INSTANCE_PUBLIC_IP;
+export const existingInstanceId = EXISTING_INSTANCE_ID;
+export const applicationUrl = pulumi.interpolate`http://${DOMAIN_NAME}`;
+export const albUrl = pulumi.interpolate`http://${alb.dnsName}`;

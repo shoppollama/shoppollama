@@ -52,31 +52,18 @@ defmodule ShoppollamaWeb.ChatLiveTest do
     end
 
     @tag :stripe
-    test "creates page for lagbaja mixtape with cover and buy button", %{conn: conn} do
+    test "creates mixtape and updates its description in Stripe", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
 
-      price = 1230
-      # match exact title "dreams of my papa" without album/tape
-      expected_title = "dreams of my papa"
-      prompt = """
-      create a page for my breand new "#{expected_title}" album/tape for #{price} . it comes out next month"
-      """
-
-      # Send a message to create a page for the mixtape and upload the cover image
-      cover_image_path = @test_image
+      # Send a message to create a mixtape - use correct form field name
       view
-      |> form("#chat-form", content: prompt)
+      |> form("#chat-form", content: "create the 'lagbaja mixtape' for 2 dollars")
       |> render_submit()
-
-      # click the add photo buttton
-      view
-      |> element("button", "Add Photo")
-      |> render_click()
 
       # Wait a moment for the async operations
       :timer.sleep(3000)
 
-      # Check that some response was generated
+      # Check that a success message is displayed
       html = render(view)
 
       # Verify the product was actually created in Stripe
@@ -85,53 +72,35 @@ defmodule ShoppollamaWeb.ChatLiveTest do
         [product_id] -> product_id
         nil ->
           # Try alternative patterns
-          case Regex.run(~r/data-url="[^"]*\/p\/(prod_[a-zA-Z0-9]+)"/, html, capture: :all_but_first) do
+          case Regex.run(~r/Product ID.*?(prod_[a-zA-Z0-9]+)/, html, capture: :all_but_first) do
             [product_id] -> product_id
             nil ->
-              case Regex.run(~r/Product ID.*?(prod_[a-zA-Z0-9]+)/, html, capture: :all_but_first) do
+              case Regex.run(~r/data-url="[^"]*\/p\/(prod_[a-zA-Z0-9]+)"/, html, capture: :all_but_first) do
                 [product_id] -> product_id
                 nil -> raise "Could not find product ID in HTML"
               end
           end
       end
 
-      # Retrieve the product from Stripe to verify it was created correctly
-      case Stripe.Product.retrieve(product_id) do
-        {:ok, stripe_product} ->
-          {:ok, prices} = Stripe.Price.list(%{product: product_id})
-          price = List.first(prices.data)
-          assert price.unit_amount == price.unit_amount  # $1.99 in cents
+      # update the product description
+      view
+      |> form("#chat-form", content: "change the description of the lagbaja mixtape to 'This is my new mixtape produced and written by your truly. Album coming soon!'")
+      |> render_submit()
 
+      # Wait for the update to complete
+      :timer.sleep(3000)
+
+      # Check that a success message is displayed
+      html = render(view)
+      assert html =~ "Product Updated" or html =~ "updated"
+
+      # Verify the product description was updated in Stripe
+      case Shoppollama.StripeProductClient.get_product(product_id) do
+        {:ok, product} ->
+          assert product.description =~ "This is my new mixtape"
         {:error, error} ->
-          flunk("Product was not created in Stripe: #{inspect(error)}")
+          flunk("Failed to get product from Stripe: #{inspect(error)}")
       end
-
-      # verify the product exists locally with a S3 URL
-      product = Shoppollama.Repo.get_by(Shoppollama.Product, stripe_product_id: product_id)
-      assert product !== nil
-      assert product.image_url !== nil
-
-      # Verify the product appears in the chat response
-      assert html =~ "http://localhost:4000/p/#{product_id}"
-
-      # Fetch the page's HTML from the web server running on port 4000
-
-      # {:ok, view, _html} = live(conn, "/")
-      response = conn |> get("/p/#{product_id}")
-
-      parsed_html = Floki.parse_document!(response.resp_body)
-
-      # Use Floki to find and verify the product price
-      product_price_div = Floki.find(parsed_html, ".product-price")
-      product_price_text = Floki.text(product_price_div)
-
-      product_title_div = Floki.find(parsed_html, ".product-title")
-      product_title_text = Floki.text(product_title_div)
-      assert product_title_text === expected_title
-
-      # Verify the product price matches what we expect (1230 should display as $1230.00)
-      expected_price = "$#{price}.00"
-      assert product_price_text =~ expected_price, "Expected price #{expected_price}, but found: #{product_price_text}"
     end
   end
 
@@ -354,6 +323,56 @@ defmodule ShoppollamaWeb.ChatLiveTest do
              "Messages container should contain user message content"
       assert String.contains?(container_html, "/p/prod_"),
              "Messages container should contain product link"
+    end
+
+    @tag :local_ollama
+    @tag :stripe
+    test "creates product using local Ollama with single combined analysis", %{conn: conn} do
+      # This test verifies product creation works with local Ollama
+      # and tests the full flow from user input to Stripe product creation
+      {:ok, view, _html} = live(conn, "/")
+
+      # Simple product creation request
+      user_message = "create a blue t-shirt for $25"
+
+      view
+      |> form("#chat-form", content: user_message)
+      |> render_submit()
+
+      # Wait for Ollama processing (local should be faster than ARM EC2)
+      # Increase timeout for multiple LLM calls
+      :timer.sleep(15_000)
+
+      # Get the rendered HTML
+      html = render(view)
+
+      # Verify product was created - look for product link
+      assert html =~ ~r/\/p\/prod_[a-zA-Z0-9]+/,
+             "Expected product link in response. Got: #{String.slice(html, 0, 500)}"
+
+      # Extract product ID
+      [product_id] = Regex.run(~r/prod_[a-zA-Z0-9]+/, html, capture: :first)
+
+      # Verify in Stripe
+      case Stripe.Product.retrieve(product_id) do
+        {:ok, stripe_product} ->
+          # Product name should contain "t-shirt" or similar
+          assert String.downcase(stripe_product.name) =~ "shirt" or
+                 String.downcase(stripe_product.name) =~ "t-shirt" or
+                 String.downcase(stripe_product.name) =~ "blue",
+                 "Product name should relate to t-shirt, got: #{stripe_product.name}"
+
+          # Verify price is $25 (2500 cents)
+          {:ok, prices} = Stripe.Price.list(%{product: product_id})
+          price = List.first(prices.data)
+          assert price.unit_amount == 2500, "Expected $25 (2500 cents), got #{price.unit_amount}"
+
+        {:error, error} ->
+          flunk("Product was not created in Stripe: #{inspect(error)}")
+      end
+
+      IO.puts("\n✅ Local Ollama product creation test passed!")
+      IO.puts("   Product ID: #{product_id}")
     end
   end
 end

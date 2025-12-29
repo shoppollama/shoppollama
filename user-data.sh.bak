@@ -1,0 +1,53 @@
+#!/bin/bash
+yum update -y
+
+# Install Docker
+yum install -y docker
+systemctl start docker
+systemctl enable docker
+usermod -a -G docker ec2-user
+
+# Install docker-compose
+curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+# Create app directory
+mkdir -p /var/www/shoppollama
+cd /var/www/shoppollama
+
+# Create docker-compose.yml
+cat > docker-compose.yml << 'DOCKEREOF'
+version: '3.8'
+services:
+  shoppollama:
+    image: 279714322890.dkr.ecr.us-east-1.amazonaws.com/shoppollama:local-20251227-150840
+    ports:
+      - "4000:4000"
+    restart: unless-stopped
+    environment:
+      - PORT=4000
+      - MIX_ENV=prod
+      - DATABASE_PATH=/app/shoppollama.db
+    volumes:
+      - ./data:/app/data
+DOCKEREOF
+
+# Create startup script
+cat > start.sh << 'STARTEOF'
+#!/bin/bash
+cd /var/www/shoppollama
+
+# Create data directory
+mkdir -p data
+
+# Login to ECR and pull the image
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin __ECR_REGISTRY__
+
+docker-compose down
+docker-compose up -d
+
+echo "✅ Application deployed!"
+STARTEOF
+
+chmod +x start.sh
+./start.sh

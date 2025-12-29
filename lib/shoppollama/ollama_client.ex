@@ -6,9 +6,24 @@ defmodule Shoppollama.OllamaClient do
 
   require Logger
 
-  @default_model "llama3.2:3b"
-  @default_endpoint "http://localhost:11434/api/generate"
-  @default_timeout 30_000
+  @default_model "qwen2:1.5b"
+  @default_base_url "http://localhost:11434"
+  @default_endpoint "#{@default_base_url}/api/generate"
+  @default_timeout 120_000
+
+  @doc """
+  Gets the Ollama base URL from environment variables or uses default.
+  """
+  def get_base_url do
+    System.get_env("OLLAMA_BASE_URL", @default_base_url)
+  end
+
+  def get_timeout do
+    case System.get_env("OLLAMA_TIMEOUT") do
+      nil -> @default_timeout
+      timeout_str -> String.to_integer(timeout_str)
+    end
+  end
 
   @doc """
   Makes a completion request to the Ollama server.
@@ -28,17 +43,27 @@ defmodule Shoppollama.OllamaClient do
       iex> OllamaClient.completion("Analyze this text", model: "llama3.2:1b")
       {:ok, "Analysis result..."}
   """
-  def completion(prompt, opts \\[]) do
+  def completion(prompt, opts \\ []) do
     model = Keyword.get(opts, :model, @default_model)
     temperature = Keyword.get(opts, :temperature, 0.7)
     stream = Keyword.get(opts, :stream, false)
-    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    timeout = Keyword.get(opts, :timeout, get_timeout())
+    base_url = get_base_url()
+    endpoint = "#{base_url}/api/generate"
 
+    # Skip health check for now to avoid timeouts
+    # case health_check() do
+    #   {:ok, _} ->
+    #     # Ollama is available, proceed with request
+    # end
+    
+    # Ollama is available, proceed with request
     request_body = %{
       model: model,
       prompt: prompt,
       temperature: temperature,
-      stream: stream
+      stream: stream,
+      format: "json"
     }
 
     headers = [
@@ -46,8 +71,7 @@ defmodule Shoppollama.OllamaClient do
       {"Accept", "application/json"}
     ]
 
-
-    case HTTPoison.post(@default_endpoint, Jason.encode!(request_body), headers, timeout: timeout) do
+    case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout, recv_timeout: timeout) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         case Jason.decode(body) do
           {:ok, %{"response" => response}} -> {:ok, String.trim(response)}
@@ -90,12 +114,15 @@ defmodule Shoppollama.OllamaClient do
     temperature = Keyword.get(opts, :temperature, 0.7)
     max_tokens = Keyword.get(opts, :max_tokens)
     timeout = Keyword.get(opts, :timeout, @default_timeout)
+    base_url = get_base_url()
+    endpoint = "#{base_url}/v1/chat/completions"
 
     request_body = %{
       model: model,
       messages: messages,
       temperature: temperature,
-      stream: false
+      stream: false,
+      format: "json"
     }
 
     request_body = if max_tokens, do: Map.put(request_body, :max_tokens, max_tokens), else: request_body
@@ -105,9 +132,7 @@ defmodule Shoppollama.OllamaClient do
       {"Accept", "application/json"}
     ]
 
-    endpoint = "http://localhost:11434/v1/chat/completions"
-
-    case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout) do
+    case HTTPoison.post(endpoint, Jason.encode!(request_body), headers, timeout: timeout, recv_timeout: timeout) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         case Jason.decode(body) do
           {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} ->
@@ -151,7 +176,9 @@ defmodule Shoppollama.OllamaClient do
       {:error, "Ollama server is not available"}
   """
   def health_check do
-    case HTTPoison.get("http://localhost:11434/api/tags", [], timeout: 5_000) do
+    base_url = get_base_url()
+    timeout = div(get_timeout(), 10)  # Use 1/10 of the main timeout for health check
+    case HTTPoison.get("#{base_url}/api/tags", [], timeout: timeout, recv_timeout: timeout) do
       {:ok, %HTTPoison.Response{status_code: 200}} ->
         {:ok, "Ollama server is running"}
       {:ok, %HTTPoison.Response{status_code: status_code}} ->
@@ -172,7 +199,9 @@ defmodule Shoppollama.OllamaClient do
       {:ok, ["llama3.2:3b", "llama3.2:1b", "codellama:7b"]}
   """
   def list_models do
-    case HTTPoison.get("http://localhost:11434/api/tags", [], timeout: 10_000) do
+    base_url = get_base_url()
+    timeout = get_timeout()
+    case HTTPoison.get("#{base_url}/api/tags", [], timeout: timeout) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         case Jason.decode(body) do
           {:ok, %{"models" => models}} ->

@@ -10,6 +10,18 @@ defmodule ShoppollamaWeb.ChatLive do
   alias Shoppollama.OllamaClient
   require Logger
 
+  # Get the base URL for product pages (handles both dev and prod)
+  defp get_base_url do
+    host = System.get_env("PHX_HOST", "localhost")
+    port = System.get_env("PORT", "4000")
+    
+    if host == "localhost" do
+      "http://#{host}:#{port}"
+    else
+      "https://#{host}"
+    end
+  end
+
   # S3 presigned URL generation
   defp presign_upload(entry, socket) do
     uploads = socket.assigns.uploads
@@ -58,7 +70,7 @@ defmodule ShoppollamaWeb.ChatLive do
      |> assign(:conversation_id, conversation_id)
      |> assign(:messages, existing_messages)
      |> assign(:current_message, "")
-     |> assign(:selected_model, "gpt-oss:20b")
+     |> assign(:selected_model, "llama3.2:3b")
      |> assign(:reasoning_effort, "medium")
      |> assign(:ollama_connected, true)
      |> assign(:store_connected, check_store_connection())
@@ -138,6 +150,8 @@ defmodule ShoppollamaWeb.ChatLive do
           route_message_by_analysis(analysis, content, image_url, stored_message.id)
         {:error, reason} ->
           Logger.error("Failed to route message: #{inspect(reason)}")
+          # Send a fallback message when analysis fails
+          send(self(), {:call_ollama, content})
       end
 
       {:noreply, socket |> update_conversation_context(content, stored_message)}
@@ -233,13 +247,13 @@ defmodule ShoppollamaWeb.ChatLive do
            name: product_result.verified_name,
            price: "$#{price.unit_amount / 100}",
            id: product.id,
-           link: "http://localhost:4000/p/#{product.id}",
+           link: "#{get_base_url()}/p/#{product.id}",
            stripe_link: "https://dashboard.stripe.com/products/#{product.id}",
            image_url: final_image_url,
            description: product.description || "Product created by ShoppOllama AI assistant",
            category: product.metadata["product_type"] || "General",
            stock: "10",
-           url: "http://localhost:4000/p/#{product.id}",
+           url: "#{get_base_url()}/p/#{product.id}",
            created_by_message_id: user_message_id
          })
          |> then(fn s ->
@@ -362,21 +376,160 @@ defmodule ShoppollamaWeb.ChatLive do
 
   @impl true
   def handle_info({:call_ollama, message}, socket) do
-    # Simulate AI response for now - we'll replace with real Ollama integration
-    ai_response = generate_ai_response(message, socket.assigns.selected_model)
+    # Try to get AI response from Ollama with production settings
+    case OllamaClient.completion(message, model: socket.assigns.selected_model, timeout: 120_000) do
+      {:ok, ai_response} ->
+        # Successfully got response from Ollama
+        ai_message = %{
+          id: System.unique_integer([:positive]),
+          role: :assistant,
+          content: ai_response,
+          timestamp: DateTime.utc_now(),
+          model: socket.assigns.selected_model
+        }
 
+        # Store the AI message in the MessageStore
+        {:ok, stored_ai_message} = MessageStore.add_message(socket.assigns.conversation_id, ai_message)
+        updated_messages = socket.assigns.messages ++ [stored_ai_message]
+
+        {:noreply,
+         socket
+         |> assign(:messages, updated_messages)
+         |> stream_insert(:messages, stored_ai_message)
+         |> assign(:thinking, false)}
+      
+      {:error, reason} ->
+        # Ollama failed, log the error and use fallback
+        Logger.error("Ollama failed in production: #{inspect(reason)}")
+        ai_response = generate_ai_response(message, socket.assigns.selected_model)
+        
+        ai_message = %{
+          id: System.unique_integer([:positive]),
+          role: :assistant,
+          content: ai_response,
+          timestamp: DateTime.utc_now(),
+          model: socket.assigns.selected_model
+        }
+
+        # Store the AI message in the MessageStore
+        {:ok, stored_ai_message} = MessageStore.add_message(socket.assigns.conversation_id, ai_message)
+        updated_messages = socket.assigns.messages ++ [stored_ai_message]
+
+        {:noreply,
+         socket
+         |> assign(:messages, updated_messages)
+         |> stream_insert(:messages, stored_ai_message)
+         |> assign(:thinking, false)}
+    end
+  end
+
+  @impl true
+  def handle_info({:modify_product, message}, socket) do
+    # Parse the modification request from the analysis
+    case TextAnalyzer.analyze_text(message, get_conversation_context(socket)) do
+      {:ok, analysis} ->
+        entities = Map.get(analysis, :entities, %{})
+        product_name = Map.get(entities, :product_name)
+        new_description = Map.get(entities, :new_description)
+        modification_type = Map.get(entities, :modification_type, :description)
+        
+        # If no product name specified, use the current product from context
+        current_product = Map.get(socket.assigns, :current_product, %{})
+        product_id_from_context = Map.get(current_product, :id)
+        product_name_from_context = Map.get(current_product, :name)
+        
+        # Find the product - either by name or use current product
+        product_result = cond do
+          # If product name was extracted from message, search by name
+          product_name && product_name != "" ->
+            find_product_by_name(product_name)
+          
+          # If we have a current product ID in context, use that directly
+          product_id_from_context ->
+            StripeProductClient.get_product(product_id_from_context)
+          
+          # If we have a product name from context, search by that
+          product_name_from_context ->
+            find_product_by_name(product_name_from_context)
+          
+          # No product found
+          true ->
+            {:error, "No product specified and no recent product in context"}
+        end
+        
+        case product_result do
+          {:ok, product} ->
+            # Update the product in Stripe
+            updates = case modification_type do
+              :description -> %{description: new_description}
+              :name -> %{name: new_description}
+              _ -> %{description: new_description}
+            end
+            
+            case StripeProductClient.update_product(product.id, updates) do
+              {:ok, updated_product} ->
+                ai_message = %{
+                  id: System.unique_integer([:positive]),
+                  role: :assistant,
+                  content: "✅ **Product Updated Successfully!**\n\n📦 **Product:** #{updated_product.title}\n✏️ **New Description:** #{new_description}\n\nYour product has been updated in Stripe!",
+                  timestamp: DateTime.utc_now(),
+                  model: socket.assigns.selected_model
+                }
+                
+                {:ok, stored_ai_message} = MessageStore.add_message(socket.assigns.conversation_id, ai_message)
+                updated_messages = socket.assigns.messages ++ [stored_ai_message]
+                
+                {:noreply,
+                 socket
+                 |> assign(:messages, updated_messages)
+                 |> stream_insert(:messages, stored_ai_message)
+                 |> assign(:thinking, false)}
+              
+              {:error, reason} ->
+                send_error_message(socket, "Failed to update product: #{reason}")
+            end
+          
+          {:error, reason} ->
+            send_error_message(socket, "Could not find product '#{product_name}': #{reason}")
+        end
+      
+      {:error, reason} ->
+        send_error_message(socket, "Failed to parse modification request: #{reason}")
+    end
+  end
+
+  defp find_product_by_name(name) when is_nil(name), do: {:error, "No product name provided"}
+  defp find_product_by_name(name) do
+    case StripeProductClient.list_products(limit: 100) do
+      {:ok, %{products: products}} ->
+        # Find product by name (case-insensitive)
+        lower_name = String.downcase(name)
+        found = Enum.find(products, fn p ->
+          String.downcase(p.title || "") =~ lower_name or
+          lower_name =~ String.downcase(p.title || "")
+        end)
+        
+        case found do
+          nil -> {:error, "Product not found"}
+          product -> {:ok, product}
+        end
+      
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp send_error_message(socket, error_text) do
     ai_message = %{
       id: System.unique_integer([:positive]),
       role: :assistant,
-      content: ai_response,
+      content: "❌ #{error_text}",
       timestamp: DateTime.utc_now(),
       model: socket.assigns.selected_model
     }
-
-    # Store the AI message in the MessageStore
+    
     {:ok, stored_ai_message} = MessageStore.add_message(socket.assigns.conversation_id, ai_message)
     updated_messages = socket.assigns.messages ++ [stored_ai_message]
-
+    
     {:noreply,
      socket
      |> assign(:messages, updated_messages)
@@ -444,27 +597,49 @@ defmodule ShoppollamaWeb.ChatLive do
     - Product ID: #{product.id}
     - Price ID: #{price.id}
     - Stripe Product Link: https://dashboard.stripe.com/products/#{product.id}
-    - Product Page Link: http://localhost:4000/p/#{product.id}
+    - Product Page Link: #{get_base_url()}/p/#{product.id}
     - Original Request: "#{original_message}"
 
-    IMPORTANT: When mentioning the product name in your response, use the exact same case and formatting as it appears in the original request. Do not change the capitalization.
+    CRITICAL: You MUST preserve the EXACT case of the product name from the original request. If the user wrote "dreams of my papa" in lowercase, you MUST write "dreams of my papa" in lowercase - do NOT capitalize it to "Dreams of My Papa".
 
     Format the response with:
     1. Start with exactly "🎉 Success!" as the first line
-    2. Product details clearly displayed, using the original product name case from the user's request
+    2. Include the exact product name as written in the original request (preserve case exactly)
     3. Include the exact text "Price: $#{price_dollars}"
     4. Include the exact text "Stripe Product Link: https://dashboard.stripe.com/products/#{product.id}"
-    5. Include the exact text "Product Page Link: http://localhost:4000/p/#{product.id}"
+    5. Include the exact text "Product Page Link: #{get_base_url()}/p/#{product.id}"
+    6. Include any timing details from the original request (like "next month", "coming soon", etc.)
 
-    Keep it concise but informative.
+    Keep it concise. Preserve exact case of product name from original request.
     """
 
-    case OllamaClient.completion(prompt, model: "llama3.2:3b", temperature: 0.7) do
-      {:ok, content} ->
-        # Always append product ID for test compatibility
-        content <> "\n\n🆔 **Product ID:** `#{product.id}`"
-      {:error, _reason} -> 
-        "Product created successfully!"
+    # Use deterministic template for required fields, then add LLM flair
+    base_message = """
+    🎉 Success!
+
+    Your product "#{result.verified_name}" has been created!
+
+    * Name: #{result.verified_name}
+    * Price: $#{price_dollars}
+    * Product ID: #{product.id}
+    * Stripe Product Link: https://dashboard.stripe.com/products/#{product.id}
+    * Product Page Link: #{get_base_url()}/p/#{product.id}
+    """
+    
+    # Add timing info if present in original message
+    timing_info = if String.contains?(String.downcase(original_message), "next month") do
+      "\n* Release: next month"
+    else
+      ""
+    end
+    
+    base_message <> timing_info <> "\n\n🆔 **Product ID:** `#{product.id}`"
+  end
+
+  defp extract_product_name_from_message(message) do
+    case Regex.run(~r/['"]([^'"]+)['"]/, message) do
+      [_, name] -> name
+      nil -> "Product"
     end
   end
 
@@ -573,7 +748,7 @@ defmodule ShoppollamaWeb.ChatLive do
         "Sales analytics are one of my specialties! I can help you track revenue trends, identify best-selling products, analyze customer behavior, and optimize your sales funnel. Connect your store to get detailed insights."
 
       true ->
-        "Hello! I'm ShoppOllama, your AI-powered Shopify assistant running on #{model}. I can help you manage your store, analyze data, automate tasks, and much more. How can I assist you today?\n\n💡 **Try creating a product**: \"Create a red hoodie for $45\""
+        "Hi there! I'm ShoppOllama, your AI-powered store assistant running on #{model}. I can help you manage your store, analyze data, automate tasks, and much more. How can I assist you today?\n\n💡 **Try creating a product**: \"Create a red hoodie for $45\""
     end
   end
 
@@ -641,7 +816,7 @@ defmodule ShoppollamaWeb.ChatLive do
 
     🔗 **Product ID:** `#{product.id}`
     💰 **Price:** $#{price_dollars}
-    🌐 **Live Page:** http://localhost:4000/p/#{product.id}
+    🌐 **Live Page:** #{get_base_url()}/p/#{product.id}
     🛒 **Ready for customers!**
     """
   end
@@ -711,6 +886,13 @@ defmodule ShoppollamaWeb.ChatLive do
       ".webp" -> "image/webp"
       _ -> "image/jpeg" # Default fallback
     end
+  end
+
+  # Catch-all to ensure thinking is always reset
+  @impl true
+  def handle_info(msg, socket) do
+    Logger.warn("Received unhandled message in ChatLive: #{inspect(msg)}")
+    {:noreply, assign(socket, :thinking, false)}
   end
 
 

@@ -1,4 +1,5 @@
 node_modules/
+assets/node_modules/
 _build/
 deps/
 *.log
