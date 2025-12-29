@@ -37,6 +37,13 @@ defmodule Shoppollama.PageCreator do
       url -> url
     end
 
+    # Get payment link from product metadata or fallback to Stripe dashboard
+    payment_url = case Map.get(product_data, :payment_link_url) do
+      nil -> "https://dashboard.stripe.com/products/#{product_data.id}"
+      "" -> "https://dashboard.stripe.com/products/#{product_data.id}"
+      url -> url
+    end
+
     """
     <!DOCTYPE html>
     <html lang="en">
@@ -266,14 +273,9 @@ defmodule Shoppollama.PageCreator do
         </div>
         
         <!-- Purchase Button -->
-        <a href="https://buy.stripe.com/test_product_#{product_data.id}" target="_blank" class="purchase-btn">
+        <a href="#{payment_url}" target="_blank" class="purchase-btn">
             Buy Now
         </a>
-        
-        <!-- Description -->
-        <div class="description">
-            #{product_data.description || "A quality product from ShoppOllama."}
-        </div>
         
         <!-- Footer -->
         <div class="footer">
