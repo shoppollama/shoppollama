@@ -225,6 +225,55 @@ defmodule Shoppollama.PageCreator do
                 line-height: 1.6;
             }
             
+            /* Progress Bar */
+            .progress-container {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                cursor: pointer;
+            }
+            .progress-time {
+                font-size: 0.75rem;
+                color: #888;
+                min-width: 40px;
+            }
+            .progress-bar {
+                flex: 1;
+                height: 4px;
+                background-color: #444;
+                border-radius: 2px;
+                position: relative;
+            }
+            .progress-fill {
+                height: 100%;
+                background-color: #1da0c3;
+                border-radius: 2px;
+                width: 0%;
+                transition: width 0.1s;
+            }
+            .progress-handle {
+                width: 12px;
+                height: 12px;
+                background-color: #fff;
+                border-radius: 50%;
+                position: absolute;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                left: 0%;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            }
+            
+            /* Play button states */
+            .play-button.playing .play-icon {
+                border-left: none;
+                width: 16px;
+                height: 16px;
+                border-top: none;
+                border-bottom: none;
+                background: linear-gradient(to right, #fff 0%, #fff 35%, transparent 35%, transparent 65%, #fff 65%, #fff 100%);
+            }
+            
             /* Footer */
             .footer {
                 padding: 20px 16px;
@@ -257,10 +306,13 @@ defmodule Shoppollama.PageCreator do
         <!-- Hero Image -->
         <img src="#{cover_image}" alt="#{product_data.title}" class="hero-image" />
         
+        <!-- Audio Player (hidden) -->
+        <audio id="audio-player" src="/images/demo.mp3" preload="metadata"></audio>
+        
         <!-- Product Info -->
         <div class="product-info">
-            <div class="play-button">
-                <div class="play-icon"></div>
+            <div class="play-button" id="play-btn" onclick="togglePlay()">
+                <div class="play-icon" id="play-icon"></div>
             </div>
             <div class="product-details">
                 <div class="product-title">
@@ -272,15 +324,80 @@ defmodule Shoppollama.PageCreator do
             </div>
         </div>
         
+        <!-- Progress Bar -->
+        <div class="progress-container" onclick="seek(event)">
+            <div class="progress-time" id="current-time">00:00</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+                <div class="progress-handle" id="progress-handle"></div>
+            </div>
+            <div class="progress-time" id="duration">00:00</div>
+        </div>
+        
         <!-- Purchase Button -->
         <a href="#{payment_url}" target="_blank" class="purchase-btn">
             Buy Now
         </a>
         
+        <!-- Description -->
+        <div class="description">
+            #{product_data.description || ""}
+        </div>
+        
         <!-- Footer -->
         <div class="footer">
             Powered by <a href="https://github.com/shoppollama/shoppollama?ref=app" target="_blank">shoppollama</a>
         </div>
+        
+        <script>
+            const audio = document.getElementById('audio-player');
+            const playBtn = document.getElementById('play-btn');
+            const playIcon = document.getElementById('play-icon');
+            const progressFill = document.getElementById('progress-fill');
+            const progressHandle = document.getElementById('progress-handle');
+            const currentTimeEl = document.getElementById('current-time');
+            const durationEl = document.getElementById('duration');
+            
+            function formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
+            }
+            
+            function togglePlay() {
+                if (audio.paused) {
+                    audio.play();
+                    playBtn.classList.add('playing');
+                } else {
+                    audio.pause();
+                    playBtn.classList.remove('playing');
+                }
+            }
+            
+            audio.addEventListener('loadedmetadata', () => {
+                durationEl.textContent = formatTime(audio.duration);
+            });
+            
+            audio.addEventListener('timeupdate', () => {
+                const percent = (audio.currentTime / audio.duration) * 100;
+                progressFill.style.width = percent + '%';
+                progressHandle.style.left = percent + '%';
+                currentTimeEl.textContent = formatTime(audio.currentTime);
+            });
+            
+            audio.addEventListener('ended', () => {
+                playBtn.classList.remove('playing');
+                progressFill.style.width = '0%';
+                progressHandle.style.left = '0%';
+            });
+            
+            function seek(event) {
+                const progressBar = document.querySelector('.progress-bar');
+                const rect = progressBar.getBoundingClientRect();
+                const percent = (event.clientX - rect.left) / rect.width;
+                audio.currentTime = percent * audio.duration;
+            }
+        </script>
     </body>
     </html>
     """

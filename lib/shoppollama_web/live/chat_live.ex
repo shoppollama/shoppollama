@@ -424,6 +424,120 @@ defmodule ShoppollamaWeb.ChatLive do
   end
 
   @impl true
+  def handle_info({:modify_product, message}, socket) do
+    # Parse the modification request from the analysis
+    case TextAnalyzer.analyze_text(message, get_conversation_context(socket)) do
+      {:ok, analysis} ->
+        entities = Map.get(analysis, :entities, %{})
+        product_name = Map.get(entities, :product_name)
+        new_description = Map.get(entities, :new_description)
+        modification_type = Map.get(entities, :modification_type, :description)
+        
+        # If no product name specified, use the current product from context
+        current_product = Map.get(socket.assigns, :current_product, %{})
+        product_id_from_context = Map.get(current_product, :id)
+        product_name_from_context = Map.get(current_product, :name)
+        
+        # Find the product - either by name or use current product
+        product_result = cond do
+          # If product name was extracted from message, search by name
+          product_name && product_name != "" ->
+            find_product_by_name(product_name)
+          
+          # If we have a current product ID in context, use that directly
+          product_id_from_context ->
+            StripeProductClient.get_product(product_id_from_context)
+          
+          # If we have a product name from context, search by that
+          product_name_from_context ->
+            find_product_by_name(product_name_from_context)
+          
+          # No product found
+          true ->
+            {:error, "No product specified and no recent product in context"}
+        end
+        
+        case product_result do
+          {:ok, product} ->
+            # Update the product in Stripe
+            updates = case modification_type do
+              :description -> %{description: new_description}
+              :name -> %{name: new_description}
+              _ -> %{description: new_description}
+            end
+            
+            case StripeProductClient.update_product(product.id, updates) do
+              {:ok, updated_product} ->
+                ai_message = %{
+                  id: System.unique_integer([:positive]),
+                  role: :assistant,
+                  content: "✅ **Product Updated Successfully!**\n\n📦 **Product:** #{updated_product.title}\n✏️ **New Description:** #{new_description}\n\nYour product has been updated in Stripe!",
+                  timestamp: DateTime.utc_now(),
+                  model: socket.assigns.selected_model
+                }
+                
+                {:ok, stored_ai_message} = MessageStore.add_message(socket.assigns.conversation_id, ai_message)
+                updated_messages = socket.assigns.messages ++ [stored_ai_message]
+                
+                {:noreply,
+                 socket
+                 |> assign(:messages, updated_messages)
+                 |> stream_insert(:messages, stored_ai_message)
+                 |> assign(:thinking, false)}
+              
+              {:error, reason} ->
+                send_error_message(socket, "Failed to update product: #{reason}")
+            end
+          
+          {:error, reason} ->
+            send_error_message(socket, "Could not find product '#{product_name}': #{reason}")
+        end
+      
+      {:error, reason} ->
+        send_error_message(socket, "Failed to parse modification request: #{reason}")
+    end
+  end
+
+  defp find_product_by_name(name) when is_nil(name), do: {:error, "No product name provided"}
+  defp find_product_by_name(name) do
+    case StripeProductClient.list_products(limit: 100) do
+      {:ok, %{products: products}} ->
+        # Find product by name (case-insensitive)
+        lower_name = String.downcase(name)
+        found = Enum.find(products, fn p ->
+          String.downcase(p.title || "") =~ lower_name or
+          lower_name =~ String.downcase(p.title || "")
+        end)
+        
+        case found do
+          nil -> {:error, "Product not found"}
+          product -> {:ok, product}
+        end
+      
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp send_error_message(socket, error_text) do
+    ai_message = %{
+      id: System.unique_integer([:positive]),
+      role: :assistant,
+      content: "❌ #{error_text}",
+      timestamp: DateTime.utc_now(),
+      model: socket.assigns.selected_model
+    }
+    
+    {:ok, stored_ai_message} = MessageStore.add_message(socket.assigns.conversation_id, ai_message)
+    updated_messages = socket.assigns.messages ++ [stored_ai_message]
+    
+    {:noreply,
+     socket
+     |> assign(:messages, updated_messages)
+     |> stream_insert(:messages, stored_ai_message)
+     |> assign(:thinking, false)}
+  end
+
+  @impl true
   def handle_info({:send_sms, message}, socket) do
     sms_data = SmsParser.parse_sms_message(message)
 

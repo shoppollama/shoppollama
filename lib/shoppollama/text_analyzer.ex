@@ -25,15 +25,77 @@ defmodule Shoppollama.TextAnalyzer do
   end
 
   defp extract_with_llm(text) do
-    # Simple prompt that works on EC2 - tested manually
-    prompt = "Extract product name and price from: #{text}. Return JSON only: {name, price}"
+    # Check if this is a modify/update request first
+    lower_text = String.downcase(text)
+    is_modify = String.contains?(lower_text, "change") or 
+                String.contains?(lower_text, "update") or
+                String.contains?(lower_text, "modify") or
+                String.contains?(lower_text, "edit")
+    
+    if is_modify do
+      # Parse modification request
+      parse_modify_request(text)
+    else
+      # Simple prompt that works on EC2 - tested manually
+      prompt = "Extract product name and price from: #{text}. Return JSON only: {name, price}"
 
-    case OllamaClient.completion(prompt, model: "qwen2:1.5b", temperature: 0.0, timeout: 120_000) do
-      {:ok, response} ->
-        Logger.info("LLM response: #{response}")
-        parse_llm_response(response, text)
-      {:error, reason} -> 
-        {:error, reason}
+      case OllamaClient.completion(prompt, model: "qwen2:1.5b", temperature: 0.0, timeout: 120_000) do
+        {:ok, response} ->
+          Logger.info("LLM response: #{response}")
+          parse_llm_response(response, text)
+        {:error, reason} -> 
+          {:error, reason}
+      end
+    end
+  end
+  
+  defp parse_modify_request(text) do
+    # Extract product name and new description from modify request
+    # Pattern: "change the description of the X to 'Y'" or similar
+    product_name = case Regex.run(~r/(?:of|for)\s+(?:the\s+)?['"]?([^'"]+?)['"]?\s+to\s+/i, text) do
+      [_, name] -> String.trim(name)
+      nil -> 
+        case Regex.run(~r/['"]([^'"]+)['"]/, text) do
+          [_, name] -> name
+          nil -> nil
+        end
+    end
+    
+    # Try multiple patterns for extracting the new description
+    new_description = cond do
+      # Pattern 1: "to 'description'" or 'to "description"'
+      match = Regex.run(~r/to\s+['"]([^'"]+)['"]/i, text) ->
+        Enum.at(match, 1)
+      
+      # Pattern 2: "description to X" where X is everything after "to "
+      match = Regex.run(~r/description\s+to\s+(.+)$/i, text) ->
+        Enum.at(match, 1) |> String.trim()
+      
+      # Pattern 3: "change ... to X" where X is everything after the last "to "
+      match = Regex.run(~r/\bto\s+(.+)$/i, text) ->
+        Enum.at(match, 1) |> String.trim()
+      
+      true -> nil
+    end
+    
+    {:ok, %{
+      intent: :modify_product,
+      products: [],
+      entities: %{
+        product_name: product_name,
+        new_description: new_description,
+        modification_type: detect_modification_type(text)
+      }
+    }}
+  end
+  
+  defp detect_modification_type(text) do
+    lower = String.downcase(text)
+    cond do
+      String.contains?(lower, "description") -> :description
+      String.contains?(lower, "price") -> :price
+      String.contains?(lower, "name") or String.contains?(lower, "title") -> :name
+      true -> :description
     end
   end
 

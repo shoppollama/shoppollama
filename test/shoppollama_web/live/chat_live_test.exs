@@ -50,6 +50,58 @@ defmodule ShoppollamaWeb.ChatLiveTest do
           flunk("Product was not created in Stripe: #{inspect(error)}")
       end
     end
+
+    @tag :stripe
+    test "creates mixtape and updates its description in Stripe", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # Send a message to create a mixtape - use correct form field name
+      view
+      |> form("#chat-form", content: "create the 'lagbaja mixtape' for 2 dollars")
+      |> render_submit()
+
+      # Wait a moment for the async operations
+      :timer.sleep(3000)
+
+      # Check that a success message is displayed
+      html = render(view)
+
+      # Verify the product was actually created in Stripe
+      # Get the product ID from the success message
+      product_id = case Regex.run(~r/\/p\/(prod_[a-zA-Z0-9]+)/, html, capture: :all_but_first) do
+        [product_id] -> product_id
+        nil ->
+          # Try alternative patterns
+          case Regex.run(~r/Product ID.*?(prod_[a-zA-Z0-9]+)/, html, capture: :all_but_first) do
+            [product_id] -> product_id
+            nil ->
+              case Regex.run(~r/data-url="[^"]*\/p\/(prod_[a-zA-Z0-9]+)"/, html, capture: :all_but_first) do
+                [product_id] -> product_id
+                nil -> raise "Could not find product ID in HTML"
+              end
+          end
+      end
+
+      # update the product description
+      view
+      |> form("#chat-form", content: "change the description of the lagbaja mixtape to 'This is my new mixtape produced and written by your truly. Album coming soon!'")
+      |> render_submit()
+
+      # Wait for the update to complete
+      :timer.sleep(3000)
+
+      # Check that a success message is displayed
+      html = render(view)
+      assert html =~ "Product Updated" or html =~ "updated"
+
+      # Verify the product description was updated in Stripe
+      case Shoppollama.StripeProductClient.get_product(product_id) do
+        {:ok, product} ->
+          assert product.description =~ "This is my new mixtape"
+        {:error, error} ->
+          flunk("Failed to get product from Stripe: #{inspect(error)}")
+      end
+    end
   end
 
   describe "ChatLive Message History Verification" do
