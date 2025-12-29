@@ -467,7 +467,7 @@ defmodule ShoppollamaWeb.CoreComponents do
   end
 
   @doc """
-  Converts URLs in text to clickable links.
+  Converts URLs in text to clickable links and formats bullet points.
   """
   def linkify_text(text) when is_binary(text) do
     # Regex to match URLs (http, https, and www)
@@ -483,12 +483,16 @@ defmodule ShoppollamaWeb.CoreComponents do
         href = if String.starts_with?(part, "www."), do: "http://#{part}", else: part
         escaped_href = Phoenix.HTML.html_escape(href) |> Phoenix.HTML.safe_to_string()
         escaped_part = Phoenix.HTML.html_escape(part) |> Phoenix.HTML.safe_to_string()
-        "<a href=\"#{escaped_href}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"text-blue-600 hover:text-blue-800 underline\">#{escaped_part}</a>"
+        "<a href=\"#{escaped_href}\" target=\"_blank\" rel=\"noopener noreferrer\">#{escaped_part}</a>"
       else
         Phoenix.HTML.html_escape(part) |> Phoenix.HTML.safe_to_string()
       end
     end)
     |> Enum.join("")
+    
+    # Convert markdown-style bullets (* ) to styled bullets (•)
+    html_parts = String.replace(html_parts, ~r/^\* /m, "• ")
+    html_parts = String.replace(html_parts, ~r/\n\* /m, "\n• ")
     
     Phoenix.HTML.raw(html_parts)
   end
