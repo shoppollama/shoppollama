@@ -14,12 +14,11 @@ defmodule ShoppollamaWeb.ChatLive do
   defp get_base_url do
     host = System.get_env("PHX_HOST", "localhost")
     port = System.get_env("PORT", "4000")
-    scheme = if host == "localhost", do: "http", else: "http"
     
     if host == "localhost" do
-      "#{scheme}://#{host}:#{port}"
+      "http://#{host}:#{port}"
     else
-      "#{scheme}://#{host}:#{port}"
+      "https://#{host}"
     end
   end
 
