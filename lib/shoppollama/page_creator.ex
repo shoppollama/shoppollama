@@ -307,7 +307,7 @@ defmodule Shoppollama.PageCreator do
         <img src="#{cover_image}" alt="#{product_data.title}" class="hero-image" />
         
         <!-- Audio Player (hidden) -->
-        <audio id="audio-player" src="/images/demo.mp3" preload="metadata"></audio>
+        <audio id="audio-player" src="/images/demo-v4.mp3" preload="metadata"></audio>
         
         <!-- Product Info -->
         <div class="product-info">

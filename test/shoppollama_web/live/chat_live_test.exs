@@ -3,6 +3,92 @@ defmodule ShoppollamaWeb.ChatLiveTest do
   import Phoenix.LiveViewTest
   @test_image "test/fixtures/cover.PNG"
 
+  describe "ChatLive Suggested Prompts" do
+    test "displays suggested prompts when there are no messages", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/")
+
+      # Verify the suggested prompts section is displayed
+      assert html =~ "Welcome to ShoppOllama"
+      assert html =~ "Try one of these to get started"
+
+      # Verify both suggested prompts are present
+      assert html =~ "lagbaja mixtape"
+      assert html =~ "vintage hoodie"
+
+      # Verify the prompt buttons exist
+      assert html =~ "use_suggested_prompt"
+      assert html =~ "phx-value-prompt"
+    end
+
+    @tag :stripe
+    test "clicking lagbaja mixtape prompt sends the message", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # Click the lagbaja mixtape suggested prompt
+      view
+      |> element("button[phx-value-prompt*='lagbaja']")
+      |> render_click()
+
+      # Wait for async operations
+      :timer.sleep(3000)
+
+      # Get the rendered HTML
+      html = render(view)
+
+      # Suggested prompts should be hidden now (messages exist)
+      refute html =~ "Try one of these to get started"
+
+      # Verify the user message appears in the chat
+      assert html =~ "lagbaja mixtape"
+
+      # Verify a product was created (success message or product link)
+      assert html =~ ~r/(Success|prod_[a-zA-Z0-9]+|Product)/
+    end
+
+    @tag :stripe
+    test "clicking vintage hoodie prompt sends the message", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # Click the vintage hoodie suggested prompt
+      view
+      |> element("button[phx-value-prompt*='vintage hoodie']")
+      |> render_click()
+
+      # Wait for async operations
+      :timer.sleep(3000)
+
+      # Get the rendered HTML
+      html = render(view)
+
+      # Suggested prompts should be hidden now (messages exist)
+      refute html =~ "Try one of these to get started"
+
+      # Verify the user message appears in the chat
+      assert html =~ "vintage hoodie"
+
+      # Verify a product was created (success message or product link)
+      assert html =~ ~r/(Success|prod_[a-zA-Z0-9]+|Product)/
+    end
+
+    test "suggested prompts disappear after sending a message", %{conn: conn} do
+      {:ok, view, html} = live(conn, "/")
+
+      # Initially, suggested prompts should be visible
+      assert html =~ "Welcome to ShoppOllama"
+
+      # Send any message via the form
+      view
+      |> form("#chat-form", content: "hello")
+      |> render_submit()
+
+      # Get the updated HTML
+      html = render(view)
+
+      # Suggested prompts should no longer be visible
+      refute html =~ "Try one of these to get started"
+    end
+  end
+
   describe "ChatLive Product Creation" do
     @tag :stripe
     test "creates mixtape product with correct name and price", %{conn: conn} do

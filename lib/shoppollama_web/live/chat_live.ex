@@ -187,6 +187,12 @@ defmodule ShoppollamaWeb.ChatLive do
   end
 
   @impl true
+  def handle_event("use_suggested_prompt", %{"prompt" => prompt}, socket) do
+    # Directly send the suggested prompt as a message
+    handle_event("send_message", %{"content" => prompt}, socket)
+  end
+
+  @impl true
   def handle_info({:create_product, message, image_url, user_message_id}, socket) do
     # Parse the product details from the message
     case ProductParser.parse_product_message(message) do

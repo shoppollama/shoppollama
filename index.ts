@@ -95,42 +95,47 @@ const targetGroupAttachment = new aws.lb.TargetGroupAttachment("shoppollama-tg-a
     port: 4000,
 });
 
-// HTTP listener - redirect to HTTPS or forward to target
+// Request ACM certificate for the domain
+const certificate = new aws.acm.Certificate("shoppollama-cert", {
+    domainName: DOMAIN_NAME,
+    subjectAlternativeNames: [`www.${DOMAIN_NAME}`],
+    validationMethod: "DNS",
+    tags: {
+        Name: "shoppollama-cert",
+    },
+});
+
+// HTTP listener - redirect to HTTPS
 const httpListener = new aws.lb.Listener("shoppollama-http-listener", {
     loadBalancerArn: alb.arn,
     port: 80,
     protocol: "HTTP",
     defaultActions: [{
-        type: "forward",
-        targetGroupArn: targetGroup.arn,
+        type: "redirect",
+        redirect: {
+            port: "443",
+            protocol: "HTTPS",
+            statusCode: "HTTP_301",
+        },
     }],
 });
 
-// Get Cloudflare zone using filter
-const cloudflareZone = cloudflare.getZone({
-    filter: {
-        name: DOMAIN_NAME,
-    },
+// Wait for certificate validation (manual DNS validation required)
+const certificateValidation = new aws.acm.CertificateValidation("shoppollama-cert-validation", {
+    certificateArn: certificate.arn,
 });
 
-// Create/Update Cloudflare DNS record to point to ALB
-const dnsRecord = new cloudflare.Record("shoppollama-dns", {
-    zoneId: cloudflareZone.then(zone => zone.id),
-    name: "@",
-    type: "CNAME",
-    content: alb.dnsName,
-    proxied: true,
-    ttl: 1, // Auto TTL when proxied
-});
-
-// Create www subdomain
-const wwwRecord = new cloudflare.Record("shoppollama-www-dns", {
-    zoneId: cloudflareZone.then(zone => zone.id),
-    name: "www",
-    type: "CNAME",
-    content: alb.dnsName,
-    proxied: true,
-    ttl: 1,
+// HTTPS listener with SSL certificate (depends on validation)
+const httpsListener = new aws.lb.Listener("shoppollama-https-listener", {
+    loadBalancerArn: alb.arn,
+    port: 443,
+    protocol: "HTTPS",
+    sslPolicy: "ELBSecurityPolicy-TLS13-1-2-2021-06",
+    certificateArn: certificateValidation.certificateArn,
+    defaultActions: [{
+        type: "forward",
+        targetGroupArn: targetGroup.arn,
+    }],
 });
 
 // Export outputs
