@@ -6,6 +6,28 @@
     --desktop-min: 1025px;
   }
   
+  /* File input styling */
+  .styled-file-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+  
+  .file-input-wrapper {
+    position: relative;
+  }
+  
+  .upload-btn:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+  }
+  
+  .upload-btn:active {
+    transform: translateY(1px);
+  }
+  
   /* Base mobile styles */
   .main-container {
     display: flex;
@@ -854,14 +876,16 @@
   <div class="input-container">
     <.form for={@form} phx-submit="send_message" phx-change="validate" id="chat-form">
       <!-- File Upload Section -->
-      <div class="upload-section" style="margin-bottom: 0.75rem;">
-        <.live_file_input upload={@uploads.image} style="display: none;" id="file-input" />
-        <button type="button" phx-click="trigger_file_input" class="upload-btn" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; color: #4a5568; transition: all 0.2s ease;">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-          </svg>
-          Add Photo
-        </button>
+        <div class="upload-section" style="margin-bottom: 0.75rem;">
+          <div class="file-input-wrapper" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <.live_file_input upload={@uploads.image} class="styled-file-input" />
+            <div class="upload-btn" phx-click="trigger_file_input" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; color: #4a5568; transition: all 0.2s ease;">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              Add Photo
+            </div>
+          </div>
         
         <!-- Display uploaded files -->
         <%= for entry <- @uploads.image.entries do %>
@@ -956,6 +980,25 @@
       }
     });
   }
+  
+  // Handle file input trigger from LiveView
+  window.addEventListener('phx:trigger_file_input', () => {
+    console.log('trigger_file_input event received');
+    // Find the file input within the file-input-wrapper
+    const fileInputWrapper = document.querySelector('.file-input-wrapper');
+    if (fileInputWrapper) {
+      const fileInput = fileInputWrapper.querySelector('input[type="file"]');
+      console.log('fileInput element:', fileInput);
+      if (fileInput) {
+        console.log('Clicking file input');
+        fileInput.click();
+      } else {
+        console.error('file input not found in wrapper');
+      }
+    } else {
+      console.error('file-input-wrapper not found');
+    }
+  });
   
   // Initialize and handle window resize
   window.addEventListener('load', adjustChatBubbles);
