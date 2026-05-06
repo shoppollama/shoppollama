@@ -26,6 +26,11 @@ defmodule ShoppollamaWeb.Endpoint do
     gzip: not code_reloading?,
     only: ShoppollamaWeb.static_paths()
 
+  # Add Tidewave plug for development
+  if Code.ensure_loaded?(Tidewave) do
+    plug Tidewave
+  end
+
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do
@@ -33,11 +38,6 @@ defmodule ShoppollamaWeb.Endpoint do
     plug Phoenix.LiveReloader
     plug Phoenix.CodeReloader
     plug Phoenix.Ecto.CheckRepoStatus, otp_app: :shoppollama
-  end
-
-  # Add Tidewave plug for development
-  if Code.ensure_loaded?(Tidewave) do
-    plug Tidewave
   end
 
   plug Phoenix.LiveDashboard.RequestLogger,
