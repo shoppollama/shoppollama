@@ -1,4 +1,5 @@
 import Config
+require Logger
 
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
@@ -7,29 +8,30 @@ import Config
 # any compile-time configuration in here, as it won't be applied.
 # The block below contains prod specific runtime configuration.
 
-# Load .env file for all environments
+# Optional .env loader (dev/test convenience; absent in prod releases)
 if config_env() in [:dev, :test, :prod] do
   env_file = Path.expand("../.env", __DIR__)
-  IO.inspect(env_file, label: "ENV_FILE_PATH")
-  IO.inspect(File.exists?(env_file), label: "FILE_EXISTS")
   if File.exists?(env_file) do
-    env_vars = Dotenvy.source!(env_file)
-    for {key, value} <- env_vars do
-      System.put_env(key, value)
-    end
-    IO.inspect(System.get_env("STRIPE_SECRET_KEY"), label: "STRIPE_KEY_AFTER_LOAD")
+    env_file
+    |> Dotenvy.source!()
+    |> Enum.each(fn {key, value} -> System.put_env(key, value) end)
   end
 end
 
-# Configure Stripe for all environments (must be after env vars are loaded)
-config :stripity_stripe,
-  api_key: System.get_env("STRIPE_SECRET_KEY"),
-  secret_key: System.get_env("STRIPE_SECRET_KEY")
+# Stripe — never raise on a missing key. Apps that need Stripe surface their
+# own errors at call time; a missing key should not block boot.
+stripe_key = System.get_env("STRIPE_SECRET_KEY")
 
-# Debug: Log the Stripe key to verify it's loaded
-if config_env() in [:dev, :test, :prod] do
-  IO.inspect(Application.get_env(:stripity_stripe, :api_key), label: "STRIPE_KEY_FROM_CONFIG")
+if stripe_key in [nil, ""] do
+  Logger.error(
+    "STRIPE_SECRET_KEY is not set — Stripe-backed features will fail at call time. " <>
+      "Set the env var to enable Stripe."
+  )
 end
+
+config :stripity_stripe,
+  api_key: stripe_key,
+  secret_key: stripe_key
 
 # ## Using releases
 #
