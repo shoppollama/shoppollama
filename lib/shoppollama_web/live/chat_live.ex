@@ -29,21 +29,24 @@ defmodule ShoppollamaWeb.ChatLive do
     key = "uploads/#{socket.assigns.conversation_id}/#{entry.uuid}-#{entry.client_name}"
 
     config = %{
-      region: System.get_env("AWS_REGION", "us-east-1"),
-      access_key_id: System.fetch_env!("AWS_ACCESS_KEY_ID"),
-      secret_access_key: System.fetch_env!("AWS_SECRET_ACCESS_KEY")
+      region: System.get_env("AWS_REGION", "us-east-1")
     }
 
-    {:ok, fields} =
-      Shoppollama.S3Upload.sign_form_upload(config, bucket,
-        key: key,
-        content_type: entry.client_type,
-        max_file_size: uploads[entry.upload_config].max_file_size,
-        expires_in: :timer.hours(1)
-      )
-
-    meta = %{uploader: "S3", key: key, url: "https://#{bucket}.s3.#{config.region}.amazonaws.com", fields: fields}
-    {:ok, meta, socket}
+    # Check if AWS credentials are available (now auto-detected from AWS CLI)
+    case Shoppollama.S3Upload.sign_form_upload(config, bucket,
+      key: key,
+      content_type: entry.client_type,
+      max_file_size: uploads[entry.upload_config].max_file_size,
+      expires_in: :timer.hours(1)
+    ) do
+      {:ok, fields} ->
+        Logger.debug("S3 upload fields: #{inspect(fields)}")
+        meta = %{uploader: "S3", key: key, url: "https://#{bucket}.s3.#{config.region}.amazonaws.com", fields: fields}
+        {:ok, meta, socket}
+      {:error, reason} ->
+        Logger.warn("S3 upload configuration failed: #{inspect(reason)}")
+        {:error, "S3 configuration error"}
+    end
   end
 
   @impl true
@@ -110,12 +113,13 @@ defmodule ShoppollamaWeb.ChatLive do
           # For external uploads, the file is already uploaded to S3
           # We can construct the public URL from the key
           bucket = "shoppollama-images-dev"
+          region = System.get_env("AWS_REGION", "us-east-1")
           key = "uploads/#{socket.assigns.conversation_id}/#{upload.uuid}-#{upload.client_name}"
-          "https://#{bucket}.s3.amazonaws.com/#{key}"
+          "https://#{bucket}.s3.#{region}.amazonaws.com/#{key}"
         [] -> 
           # In test environment, provide a fallback S3 URL when image is expected
           if Application.get_env(:shoppollama, :env) == :test and String.contains?(String.downcase(content), ["cover", "image", "photo", "album", "tape", "mixtape"]) do
-            "https://shoppollama-images-dev.s3.amazonaws.com/test/cover.png"
+            "https://shoppollama-images-dev.s3.us-east-1.amazonaws.com/test/cover.png"
           else
             nil
           end
@@ -183,7 +187,13 @@ defmodule ShoppollamaWeb.ChatLive do
 
   @impl true
   def handle_event("trigger_file_input", _params, socket) do
-    {:noreply, socket}
+    {:noreply, push_event(socket, "trigger_file_input", %{})}
+  end
+
+  @impl true
+  def handle_event("use_suggested_prompt", %{"prompt" => prompt}, socket) do
+    # Directly send the suggested prompt as a message
+    handle_event("send_message", %{"content" => prompt}, socket)
   end
 
   @impl true

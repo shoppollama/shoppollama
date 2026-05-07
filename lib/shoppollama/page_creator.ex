@@ -12,7 +12,24 @@ defmodule Shoppollama.PageCreator do
   def get_page_html(stripe_product_id) do
     case StripeProductClient.get_product(stripe_product_id) do
       {:ok, product_data} ->
-        html = generate_product_page_html(product_data)
+        # Try to get the product from local database to get the image_url
+        local_product = case Shoppollama.Repo.get_by(Shoppollama.Product, stripe_product_id: stripe_product_id) do
+          nil -> nil
+          product -> product
+        end
+        
+        # Merge the image_url from local database if available
+        product_data_with_image = case local_product do
+          nil -> product_data
+          product -> 
+            if product.image_url do
+              Map.put(product_data, :image_url, product.image_url)
+            else
+              product_data
+            end
+        end
+        
+        html = generate_product_page_html(product_data_with_image)
         {:ok, html}
 
       {:error, reason} ->
@@ -307,7 +324,7 @@ defmodule Shoppollama.PageCreator do
         <img src="#{cover_image}" alt="#{product_data.title}" class="hero-image" />
         
         <!-- Audio Player (hidden) -->
-        <audio id="audio-player" src="/images/demo.mp3" preload="metadata"></audio>
+        <audio id="audio-player" src="/images/demo-v4.mp3" preload="metadata"></audio>
         
         <!-- Product Info -->
         <div class="product-info">
